@@ -17,16 +17,42 @@
 
 namespace RTSP
 {
-class RTSPCLIENT_EXPORT RTSPClient
+class RTSPCLIENT_EXPORT ProxyRTSPClient
 {
 public:
-    RTSPClient();
-    ~RTSPClient();
+    ProxyRTSPClient();
+    ~ProxyRTSPClient();
 
-    bool open(const std::string &addr, int port, const std::string &user = "", const std::string &passwd = "");
+    /**
+     * @brief 打开RTSP流
+     * 
+     * @param addr 地址
+     * @param port 端口
+     * @param path 路径
+     * @param user 用户名
+     * @param passwd 密码
+     * @return true 
+     * @return false 
+     */
+    bool open(const std::string &addr, int port, const std::string &path, const std::string &user = "", const std::string &passwd = "");
+
+    /**
+     * @brief 关闭RTSP流
+     * 
+     * @return true 
+     * @return false 
+     */
     bool close();
 
-    void setFrameCallback(const std::function<void (unsigned char *, size_t, int)>);
+    /**
+     * @brief 设置获得帧时的回调
+     * 
+     */
+    void setFrameCallback(const std::function<void (unsigned char *, size_t, char *)> &);
+
+private:
+    class impl;
+    impl *m_impl;
 };
 }
 

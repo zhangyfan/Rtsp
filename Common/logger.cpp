@@ -14,11 +14,11 @@ COMMON_EXPORT void InitLogger(const std::string &path, spdlog::level::level_enum
 
     if (path.empty()) {
         //默认情况下写入到home目录
-        dir = filesystem::path(getenv("HOME"));
+        dir        = filesystem::current_path();
     }
 
     dir = dir / "RtspProxy.txt";
-    loggerDir = dir.root_path().generic_u8string();
+    loggerDir = dir.u8string();
 
     //一个最大16MB的滚动日志
     auto console_sink  = std::make_shared<sinks::stdout_color_sink_mt>();    
