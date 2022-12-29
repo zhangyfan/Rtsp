@@ -14,14 +14,13 @@
 #include "MediaSession.hh"
 #include "MediaSink.hh"
 
+class RTSPClient;
 class DummySink : public MediaSink {
 public:
-    static DummySink *createNew(UsageEnvironment &env,
-        MediaSubsession &subsession,  // identifies the kind of data that's being received
-        char const *streamId = NULL); // identifies the stream itself (optional)
+    static DummySink *createNew(UsageEnvironment &env, MediaSubsession &subsession, RTSPClient *client);
 
 private:
-    DummySink(UsageEnvironment &env, MediaSubsession &subsession, char const *streamId);
+    DummySink(UsageEnvironment &env, MediaSubsession &subsession, RTSPClient *client);
     // called only by "createNew()"
     virtual ~DummySink();
 
@@ -36,6 +35,7 @@ private:
 
 private:
     u_int8_t *fReceiveBuffer;
+    RTSPClient *client_;
     MediaSubsession &fSubsession;
     char *fStreamId;
 };

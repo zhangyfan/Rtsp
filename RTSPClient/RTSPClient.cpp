@@ -69,7 +69,7 @@ void continueAfterSETUP(RTSPClient *rtspClient, int resultCode, char *resultStri
         // Having successfully setup the subsession, create a data sink for it, and call "startPlaying()" on it.
         // (This will prepare the data sink to receive data; the actual flow of data from the client won't start happening until later,
         // after we've sent a RTSP "PLAY" command.)
-        scs.subsession->sink = DummySink::createNew(env, *scs.subsession, rtspClient->url());
+        scs.subsession->sink = DummySink::createNew(env, *scs.subsession, rtspClient);
         // perhaps use your own custom "MediaSink" subclass instead
         if (scs.subsession->sink == NULL) {
             LOG_ERROR("Failed to create a data sink for the subsession: {}", env.getResultMsg());
@@ -229,23 +229,24 @@ public:
 
     bool open(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd);
     bool close();
-    void setFrameCallback(const std::function<void(unsigned char *, size_t, char *)> &callback);
+    void setFrameCallback(const std::function<void(unsigned char *, size_t, const char *)> &callback);
+    void run();
 
 private:
     std::string makeURL(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd);
 
 private:
     std::function<void(unsigned char *, size_t, char *)> m_onFrame;
-    TaskScheduler *m_scheduler;
-    UsageEnvironment *m_env;
-    CustomRTSPClient *m_client;
-    char m_eventLoopWatchVariable = 0;
-    std::mutex m_mtx;
+    TaskScheduler *scheduler_ = nullptr;
+    UsageEnvironment *env_ = nullptr;
+    CustomRTSPClient *client_ = nullptr;
+    char eventLoopWatchVariable_ = 0;
+    std::mutex mtx_;
 };
 
 ProxyRTSPClient::impl::impl() {
-    m_scheduler = BasicTaskScheduler::createNew();
-    m_env       = BasicUsageEnvironment::createNew(*m_scheduler);
+    scheduler_ = BasicTaskScheduler::createNew();
+    env_       = BasicUsageEnvironment::createNew(*scheduler_);
 }
 
 ProxyRTSPClient::impl::~impl() {
@@ -267,27 +268,36 @@ std::string ProxyRTSPClient::impl::makeURL(const std::string &addr, int port, co
 
 bool ProxyRTSPClient::impl::open(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd) {
     std::string url        = makeURL(addr, port, path, user, passwd);
-    RTSPClient *rtspClient = CustomRTSPClient::createNew(*m_env, url.c_str(), 1, "RTSPProxy");
 
-    if (!rtspClient) {
-        LOG_ERROR("Fail to open rtsp url [{}], error [{}] ", url, m_env->getResultMsg());
+    std::lock_guard<std::mutex> guard(mtx_);
+    client_ = CustomRTSPClient::createNew(*env_, url.c_str(), 1, "RTSPProxy");
+
+    if (!client_) {
+        LOG_ERROR("Fail to open rtsp url [{}], error [{}] ", url, env_->getResultMsg());
         return false;
     }
 
-    rtspClient->sendDescribeCommand(continueAfterDESCRIBE);
-    m_env->taskScheduler().doEventLoop(&m_eventLoopWatchVariable);
+    client_->sendDescribeCommand(continueAfterDESCRIBE);
     return true;
 }
 
 bool ProxyRTSPClient::impl::close()
 {
-    shutdownStream(m_client);
+    std::lock_guard<std::mutex> guard(mtx_);
+
+    shutdownStream(client_);
+    client_ = nullptr;
     return true;
 }
 
-void ProxyRTSPClient::impl::setFrameCallback(const std::function<void(unsigned char *, size_t, char *)> &callback)
+void ProxyRTSPClient::impl::setFrameCallback(const std::function<void(unsigned char *, size_t, const char *)> &callback)
 {
+    client_->setFrameCallback(callback);
+}
 
+void ProxyRTSPClient::impl::run() 
+{
+    env_->taskScheduler().doEventLoop(&eventLoopWatchVariable_);
 }
 //---------------------------------------------------------------------------------------------------------
 ProxyRTSPClient::ProxyRTSPClient() {
@@ -308,7 +318,11 @@ bool ProxyRTSPClient::close() {
     return m_impl->close();
 }
 
-void ProxyRTSPClient::setFrameCallback(const std::function<void(unsigned char *, size_t, char *)> &callback) {
+void ProxyRTSPClient::setFrameCallback(const std::function<void(unsigned char *, size_t, const char *)> &callback) {
     m_impl->setFrameCallback(callback);
+}
+
+void ProxyRTSPClient::run() {
+    m_impl->run();
 }
 } // namespace RTSP

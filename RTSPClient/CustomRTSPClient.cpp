@@ -37,3 +37,15 @@ CustomRTSPClient::CustomRTSPClient(
 CustomRTSPClient::~CustomRTSPClient() 
 {
 }
+
+void CustomRTSPClient::onFrame(unsigned char *data, size_t length, const char *streamId)
+{
+    if (callback_) {
+        callback_(data, length, streamId);
+    }
+}
+
+void CustomRTSPClient::setFrameCallback(const std::function<void (unsigned char *, size_t, const char *)> &cb)
+{
+    callback_ = cb;
+}

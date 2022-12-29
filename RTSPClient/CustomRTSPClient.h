@@ -35,14 +35,18 @@ public:
         int verbosityLevel                = 0,
         char const *applicationName       = NULL,
         portNumBits tunnelOverHTTPPortNum = 0);
-
+        
+    void setFrameCallback(const std::function<void (unsigned char *, size_t, const char *)> &cb);
+    void onFrame(unsigned char *data, size_t length, const char *streamId);
 protected:
     CustomRTSPClient(
         UsageEnvironment &env, char const *rtspURL, int verbosityLevel, char const *applicationName, portNumBits tunnelOverHTTPPortNum);
     virtual ~CustomRTSPClient();
 
+
 public:
     StreamClientState scs;
+    std::function<void (unsigned char *, size_t, const char *)> callback_;
 };
 
 #endif //_CUSTOMRTSPCLIENT_H_

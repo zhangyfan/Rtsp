@@ -1,14 +1,16 @@
 #include "DummySink.h"
+#include "CustomRTSPClient.h"
+#include "RTSPClient.hh"
 
-#define DUMMY_SINK_RECEIVE_BUFFER_SIZE 100000
+#define DUMMY_SINK_RECEIVE_BUFFER_SIZE 512 * 1024
 
-DummySink *DummySink::createNew(UsageEnvironment &env, MediaSubsession &subsession, char const *streamId) {
-    return new DummySink(env, subsession, streamId);
+DummySink *DummySink::createNew(UsageEnvironment &env, MediaSubsession &subsession, RTSPClient *client) {
+    return new DummySink(env, subsession, client);
 }
 
-DummySink::DummySink(UsageEnvironment &env, MediaSubsession &subsession, char const *streamId)
-    : MediaSink(env), fSubsession(subsession) {
-    fStreamId      = strDup(streamId);
+DummySink::DummySink(UsageEnvironment &env, MediaSubsession &subsession, RTSPClient *client)
+    : MediaSink(env), fSubsession(subsession), client_(client) {
+    fStreamId      = strDup(client->url());
     fReceiveBuffer = new u_int8_t[DUMMY_SINK_RECEIVE_BUFFER_SIZE];
 }
 
@@ -25,7 +27,10 @@ void DummySink::afterGettingFrame(void *clientData, unsigned frameSize, unsigned
 
 void DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
     struct timeval presentationTime, unsigned /*durationInMicroseconds*/) {
+    CustomRTSPClient *customClient = (CustomRTSPClient *)client_;
+    
 
+    customClient->onFrame(fReceiveBuffer, frameSize, fStreamId);
     // Then continue, to request the next frame of data:
     continuePlaying();
 }

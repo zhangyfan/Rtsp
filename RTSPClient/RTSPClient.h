@@ -48,8 +48,13 @@ public:
      * @brief 设置获得帧时的回调
      * 
      */
-    void setFrameCallback(const std::function<void (unsigned char *, size_t, char *)> &);
+    void setFrameCallback(const std::function<void (unsigned char *, size_t, const char *)> &);
 
+    /**
+     * @brief 开始执行获得流
+     * 
+     */
+    void run();
 private:
     class impl;
     impl *m_impl;
