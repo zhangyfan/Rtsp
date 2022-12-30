@@ -3,6 +3,7 @@
 #include <mutex>
 extern "C" {
     #include "libavcodec/avcodec.h"
+    #include "libavutil/imgutils.h"
 }
 
 // Windows下的解码实现使用ffmpeg解码器，如果要编译可以先下载一个ffmpeg
@@ -62,6 +63,8 @@ bool DecoderH264::impl::decode(unsigned char *src, size_t length, unsigned char 
         return false;
     }
 
+    av_init_packet(pPacket);
+    
     pPacket->size = length;
     pPacket->data = src;
 
@@ -71,33 +74,20 @@ bool DecoderH264::impl::decode(unsigned char *src, size_t length, unsigned char 
         return false;
     }
 
-    int outLength = 0, gotFrame = 0;
-
     // 解码
-    outLength = avcodec_decode_video2(context_, pFrame, &gotFrame, pPacket);
-
-    if (!gotFrame) {
+    ret = avcodec_receive_frame(context_, pFrame);
+        
+    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || ret < 0) {
         return false;
     }
+
     int width        = pFrame->width;
     int height       = pFrame->height;
-    int linesize_y   = pFrame->linesize[0];
-    int linesize_uv  = pFrame->linesize[1];
 
-    dst              = (unsigned char *)malloc(width * height * 3 / 2);
-    unsigned char *y = dst, *u = y + height * width, *v = u + height / 2 * width / 2;
+    dstLength = width * height * 3 / 2;
+    dst       = (unsigned char *)malloc(dstLength);
 
-    // 分别拷贝yuv数据
-    for (int i = 0; i < height; i++) {
-        memcpy(y + i * width, pFrame->data[0] + i * linesize_y, width);
-    }
-    for (int i = 0; i < height / 2; i++) {
-        memcpy(u + i * width / 2, pFrame->data[1] + i * linesize_uv, width / 2);
-    }
-    for (int i = 0; i < height / 2; i++) {
-        memcpy(v + i * width / 2, pFrame->data[2] + i * linesize_uv, width / 2);
-    }
-
+    av_image_copy_to_buffer(dst, dstLength, pFrame->data, pFrame->linesize, context_->pix_fmt, width, height, 1);
     return true;
 }
 

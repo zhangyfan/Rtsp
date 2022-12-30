@@ -35,6 +35,9 @@ int main()
 
         fwrite(yuv, 1, yuv_size, file1);
         fflush(file1);
+
+        delete[] dataNAL;
+        delete[] yuv;
     });
 
     client.run();
