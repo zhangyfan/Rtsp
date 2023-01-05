@@ -1,21 +1,24 @@
 cmake_minimum_required(VERSION 3.10)
 project(RtspProxy)
 
-cmake_policy(SET CMP0111 OLD)
+#cmake_policy(SET CMP0111 OLD)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options(-D_CRT_SECURE_NO_WARNINGS)
+
+set(3RD_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/3rd_lib")
 
 #3rd_lib不要放在moc后面
 add_subdirectory("3rd_lib")
 add_subdirectory("Common")
 add_subdirectory("RTSPClient")
+add_subdirectory("RTSPServer")
 add_subdirectory("Codec")
 add_subdirectory("Program")
-add_subdirectory("testRTSPServer")
+add_subdirectory("RTSPServerTest")

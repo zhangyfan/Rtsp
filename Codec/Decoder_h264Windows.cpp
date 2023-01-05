@@ -19,7 +19,6 @@ public:
 
 private:
     AVCodec *codec_;
-    AVCodecParserContext *parseContext_;
     AVCodecContext *context_;
 };
 
@@ -31,16 +30,9 @@ DecoderH264::impl::impl() {
         return;
     }
 
-    parseContext_ = av_parser_init(codec_->id);
-
-    if (!parseContext_) {
-        LOG_ERROR("Error on av_parser_init!");
-        return;
-    }
-
     context_ = avcodec_alloc_context3(codec_);
 
-    if (!parseContext_) {
+    if (!context_) {
         LOG_ERROR("Error on avcodec_alloc_context3!");
         return;
     }

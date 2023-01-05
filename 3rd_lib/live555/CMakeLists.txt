@@ -1,3 +1,5 @@
+if (WIN32)
+
 add_library(BasicUsageEnvironment UNKNOWN IMPORTED GLOBAL)
 set_target_properties(BasicUsageEnvironment PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/BasicUsageEnvironment"
@@ -29,3 +31,4 @@ set_target_properties(UsageEnvironment PROPERTIES
 add_library(live555 INTERFACE IMPORTED GLOBAL)
 set_property(TARGET live555 PROPERTY
   INTERFACE_LINK_LIBRARIES BasicUsageEnvironment groupsock liveMedia UsageEnvironment)
+endif()

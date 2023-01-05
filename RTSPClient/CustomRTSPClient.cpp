@@ -49,3 +49,19 @@ void CustomRTSPClient::setFrameCallback(const std::function<void (unsigned char 
 {
     callback_ = cb;
 }
+
+int CustomRTSPClient::getVideoWidth() {
+    if (scs.subsession) {
+        return scs.subsession->videoWidth();
+    }
+
+    return 0;
+}
+
+int CustomRTSPClient::getVideoHeight() {
+    if (scs.subsession) {
+        return scs.subsession->videoHeight();
+    }
+
+    return 0;
+}

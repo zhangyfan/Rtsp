@@ -1,2 +1,0 @@
-add_executable(testRTSPServer main.cpp)
-target_link_libraries(testRTSPServer live555)

@@ -1,9 +1,9 @@
 #include "RTSPClient.h"
-#include "BasicUsageEnvironment.hh"
 #include "CustomRTSPClient.h"
 #include "DummySink.h"
-#include "UsageEnvironment.hh"
 #include "logger.h"
+#include <UsageEnvironment/UsageEnvironment.hh>
+#include <BasicUsageEnvironment/BasicUsageEnvironment.hh>
 #include <memory>
 #include <sstream>
 
@@ -231,6 +231,8 @@ public:
     bool close();
     void setFrameCallback(const std::function<void(unsigned char *, size_t, const char *)> &callback);
     void run();
+    int getVideoWidth();
+    int getVideoHeight();
 
 private:
     std::string makeURL(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd);
@@ -299,6 +301,14 @@ void ProxyRTSPClient::impl::run()
 {
     env_->taskScheduler().doEventLoop(&eventLoopWatchVariable_);
 }
+
+int ProxyRTSPClient::impl::getVideoWidth() {
+    return client_->getVideoWidth();
+}
+
+int ProxyRTSPClient::impl::getVideoHeight() {
+    return client_->getVideoHeight();
+}
 //---------------------------------------------------------------------------------------------------------
 ProxyRTSPClient::ProxyRTSPClient() {
     m_impl = new impl();
@@ -324,5 +334,13 @@ void ProxyRTSPClient::setFrameCallback(const std::function<void(unsigned char *,
 
 void ProxyRTSPClient::run() {
     m_impl->run();
+}
+
+int ProxyRTSPClient::getVideoWidth() {
+    return m_impl->getVideoWidth();
+}
+
+int ProxyRTSPClient::getVideoHeight() {
+    return m_impl->getVideoHeight();
 }
 } // namespace RTSP

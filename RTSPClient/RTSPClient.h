@@ -55,6 +55,10 @@ public:
      * 
      */
     void run();
+
+    int getVideoWidth();
+    int getVideoHeight();
+
 private:
     class impl;
     impl *m_impl;

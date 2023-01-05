@@ -11,8 +11,8 @@
 #ifndef _DUMMYSINK_H_
 #define _DUMMYSINK_H_
 #pragma once
-#include "MediaSession.hh"
-#include "MediaSink.hh"
+#include <liveMedia/MediaSession.hh>
+#include <liveMedia/MediaSink.hh>
 
 class RTSPClient;
 class DummySink : public MediaSink {

@@ -11,7 +11,7 @@
 #ifndef _CUSTOMRTSPCLIENT_H_
 #define _CUSTOMRTSPCLIENT_H_
 #pragma once
-#include <RTSPClient.hh>
+#include <liveMedia/RTSPClient.hh>
 #include <functional>
 
 class StreamClientState {
@@ -37,11 +37,15 @@ public:
         portNumBits tunnelOverHTTPPortNum = 0);
         
     void setFrameCallback(const std::function<void (unsigned char *, size_t, const char *)> &cb);
-    void onFrame(unsigned char *data, size_t length, const char *streamId);
+    void onFrame(unsigned char *data, size_t length, const char *streamId);    
+    
+    int getVideoWidth();
+    int getVideoHeight();
 protected:
     CustomRTSPClient(
         UsageEnvironment &env, char const *rtspURL, int verbosityLevel, char const *applicationName, portNumBits tunnelOverHTTPPortNum);
     virtual ~CustomRTSPClient();
+
 
 
 public:
