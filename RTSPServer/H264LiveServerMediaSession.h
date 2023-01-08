@@ -2,15 +2,15 @@
 #include "LiveSource.h"
 #include "OnDemandServerMediaSubsession.hh"
 #include "liveMedia.hh"
+#include <map>
 
 class H264LiveServerMediaSession : public OnDemandServerMediaSubsession {
 public:
     static H264LiveServerMediaSession *createNew(UsageEnvironment &env, bool reuseFirstSource);
     void checkForAuxSDPLine1();
     void afterPlayingDummy1();
-    inline LiveSource* getSource() {
-        return frameSource_;
-    }
+
+    void addFrame(unsigned char *data, size_t length);
 
 protected:
     H264LiveServerMediaSession(UsageEnvironment &env, bool reuseFirstSource);
@@ -26,5 +26,5 @@ private:
     char *fAuxSDPLine;
     char fDoneFlag;
     RTPSink *fDummySink;
-    LiveSource *frameSource_;
+    LiveSource *frameSource_ = nullptr;
 };

@@ -1,11 +1,12 @@
 #include "H264LiveServerMediaSession.h"
+#include "logger.h"
 
 H264LiveServerMediaSession *H264LiveServerMediaSession::createNew(UsageEnvironment &env, bool reuseFirstSource) {
     return new H264LiveServerMediaSession(env, reuseFirstSource);
 }
 
 H264LiveServerMediaSession::H264LiveServerMediaSession(UsageEnvironment &env, bool reuseFirstSource)
-    : OnDemandServerMediaSubsession(env, reuseFirstSource), fAuxSDPLine(NULL), fDoneFlag(0), fDummySink(NULL), frameSource_(NULL) {
+    : OnDemandServerMediaSubsession(env, reuseFirstSource), fAuxSDPLine(NULL), fDoneFlag(0), fDummySink(NULL) {
 }
 
 H264LiveServerMediaSession::~H264LiveServerMediaSession(void) {
@@ -55,12 +56,19 @@ char const *H264LiveServerMediaSession::getAuxSDPLine(RTPSink *rtpSink, FramedSo
 }
 
 FramedSource *H264LiveServerMediaSession::createNewStreamSource(unsigned clientSessionID, unsigned &estBitRate) {
-    estBitRate                 = 90000;
+    estBitRate   = 90000;
     frameSource_ = LiveSource::createNew(envir());
 
+    LOG_ERROR("source created {:x}", uint64_t(frameSource_));
     return H264VideoStreamDiscreteFramer::createNew(envir(), frameSource_);
 }
 
 RTPSink *H264LiveServerMediaSession::createNewRTPSink(Groupsock *rtpGroupsock, unsigned char rtpPayloadTypeIfDynamic, FramedSource *inputSource) {
     return H264VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic);
+}
+
+void H264LiveServerMediaSession::addFrame(unsigned char* data, size_t length) {
+    if (frameSource_) {
+        frameSource_->addFrame(data,length);
+    }
 }

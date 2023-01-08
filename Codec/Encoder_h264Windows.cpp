@@ -39,7 +39,7 @@ EncoderH264::impl::impl() {
     codec_ = avcodec_find_encoder(AV_CODEC_ID_H264);
 
     if (!codec_) {
-        LOG_ERROR("Error on find h.264 decoder from ffmpeg!");
+        LOG_ERROR("Error on find h.264 encoder from ffmpeg!");
         return;
     }
 
@@ -56,7 +56,7 @@ EncoderH264::impl::impl() {
     context_->framerate = {25, 1};
     context_->gop_size  = 10;
     context_->max_b_frames = 1;
-    context_->pix_fmt      = AV_PIX_FMT_YUV420P;
+    context_->pix_fmt      = AV_PIX_FMT_BGR24;
 
     if (avcodec_open2(context_, codec_, nullptr) < 0) {
         LOG_ERROR("Error on avcodec_open2!");

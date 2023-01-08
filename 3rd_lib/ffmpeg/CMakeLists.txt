@@ -1,3 +1,4 @@
+if(WIN32)
 add_library(avcodec UNKNOWN IMPORTED GLOBAL)
 set_target_properties(avcodec PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/"
@@ -36,3 +37,4 @@ set_target_properties(avutil PROPERTIES
 add_library(ffmpeg INTERFACE IMPORTED GLOBAL)
 set_property(TARGET ffmpeg PROPERTY
   INTERFACE_LINK_LIBRARIES avcodec avdevice avfilter avformat avutil)
+endif()

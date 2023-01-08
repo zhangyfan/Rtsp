@@ -22,6 +22,8 @@ public:
     EncoderH264();
     ~EncoderH264();
 
+    virtual bool readSPS(unsigned char *&dst, size_t &dstLength);
+
     /**
      * @brief 编码
      * 

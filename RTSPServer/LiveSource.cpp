@@ -1,4 +1,5 @@
 ﻿#include "LiveSource.h"
+#include "logger.h"
 
 #if defined(_WIN32)
 #include <chrono>
@@ -16,6 +17,33 @@ int gettimeofday(struct timeval *tp, struct timezone *tzp) {
 #include <sys/time.h>
 #endif // _WIN32
 
+using FrameType = std::pair<unsigned char *, size_t>;
+static std::queue<FrameType> g_queue;
+std::mutex mtx_;
+std::condition_variable cond_;
+
+void addFrame(unsigned char *data, size_t length) {
+    unsigned char *buffer = new unsigned char[length];
+    memcpy(buffer, data, length);
+
+    std::unique_lock<std::mutex> guard(mtx_);
+    g_queue.push(std::make_pair(buffer, length));
+    cond_.notify_all();
+}
+
+std::pair<unsigned char *, size_t> getFrame() {
+    std::pair<unsigned char *, size_t> res;
+    std::unique_lock<std::mutex> guard(mtx_);
+
+    if (g_queue.empty()) {
+        cond_.wait(guard, []() { return !g_queue.empty(); });
+    }
+
+    res = g_queue.front();
+    g_queue.pop();
+    return res;
+}
+
 LiveSource *LiveSource::createNew(UsageEnvironment &env) {
     return new LiveSource(env);
 }
@@ -24,7 +52,8 @@ EventTriggerId LiveSource::eventTriggerId = 0;
 
 unsigned LiveSource::referenceCount       = 0;
 
-LiveSource::LiveSource(UsageEnvironment &env): FramedSource(env) {
+LiveSource::LiveSource(UsageEnvironment &env)
+    : FramedSource(env) {
     if (referenceCount == 0) {
 
     }
@@ -81,26 +110,6 @@ void LiveSource::deliverFrame() {
     FramedSource::afterGetting(this);
 }
 
-void LiveSource::addFrame(unsigned char* data, size_t length) {
-    unsigned char *buffer = new unsigned char[length];
-
-    memcpy(buffer, data, length);
-
-    std::unique_lock<std::mutex> guard(mtx_);
-
-    //加入队列
-    queue_.push(std::make_pair(buffer, length));
-    cond_.notify_all();
-}
-
-std::pair<unsigned char*, size_t> LiveSource::getFrame() {
-    std::unique_lock<std::mutex> guard(mtx_);
-
-    if (queue_.empty()) {
-        cond_.wait(guard);
-    }
-    std::pair<unsigned char *, size_t> res = queue_.front();
-
-    queue_.pop();
-    return res;
+void LiveSource::addFrame(unsigned char *data, size_t length) {
+    ::addFrame(data, length);
 }

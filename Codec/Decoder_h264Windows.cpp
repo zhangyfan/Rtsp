@@ -4,6 +4,7 @@
 extern "C" {
     #include "libavcodec/avcodec.h"
     #include "libavutil/imgutils.h"
+    #include "libswscale/swscale.h"
 }
 
 // Windows下的解码实现使用ffmpeg解码器，如果要编译可以先下载一个ffmpeg
@@ -23,8 +24,11 @@ private:
 };
 
 DecoderH264::impl::impl() {
+#ifdef _MSC_VER
     codec_ = avcodec_find_decoder(AV_CODEC_ID_H264);
-
+#else
+    codec_ = avcodec_find_decoder_by_name("h264"/*"h264_rkmpp"*/);
+#endif
     if (!codec_) {
         LOG_ERROR("Error on find h.264 decoder from ffmpeg!");
         return;
@@ -76,10 +80,20 @@ bool DecoderH264::impl::decode(unsigned char *src, size_t length, unsigned char 
     int width        = pFrame->width;
     int height       = pFrame->height;
 
-    dstLength = width * height * 3 / 2;
+    dstLength = width * height * 3;
     dst       = (unsigned char *)malloc(dstLength);
 
-    av_image_copy_to_buffer(dst, dstLength, pFrame->data, pFrame->linesize, context_->pix_fmt, width, height, 1);
+    //转换为BGR24
+    SwsContext* swsContext = swsContext = sws_getContext(pFrame->width, pFrame->height, AV_PIX_FMT_YUV420P,pFrame->width, pFrame->height, AV_PIX_FMT_BGR24, NULL, NULL, NULL, NULL);
+    int linesize[8] = {pFrame->linesize[0] * 3};
+    int numBytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, pFrame->width, pFrame->height, 1);
+    auto buffer = (uint8_t*) malloc(numBytes * sizeof(uint8_t));
+    uint8_t* bgrBuffer[8] = {buffer};
+
+    sws_scale(swsContext, pFrame->data, pFrame->linesize, 0, pFrame->height, bgrBuffer, linesize);
+    memcpy(dst, bgrBuffer[0], dstLength);
+
+    free(buffer);
     return true;
 }
 

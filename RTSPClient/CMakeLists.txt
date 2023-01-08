@@ -6,7 +6,7 @@ file(GLOB HEADERS *.h)
 if(WIN32)
 include_directories("${3RD_DIRECTORY}/live555/include/")
 else()
-#»ùÓÚsysrootµÄÂ·¾¶
+#åŸºäºŽsysrootçš„è·¯å¾„
 include_directories("${CMAKE_SYSROOT}/usr/include/groupsock")
 include_directories("${CMAKE_SYSROOT}/usr/include/liveMedia")
 include_directories("${CMAKE_SYSROOT}/usr/include/UsageEnvironment")

@@ -73,8 +73,8 @@ void RTSPServer::impl::start(int port, const std::string &stream) {
 }
 
 bool RTSPServer::impl::addFrame(unsigned char* data, size_t length) {
-    if (liveSubSession_->getSource()) {
-        liveSubSession_->getSource()->addFrame(data, length);
+    if (liveSubSession_) {
+        liveSubSession_->addFrame(data, length);
         return true;
     }
 
