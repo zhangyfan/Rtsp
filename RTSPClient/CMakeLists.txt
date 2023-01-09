@@ -15,7 +15,7 @@ endif()
 
 add_library(RTSPClient SHARED ${SOURCES} ${HEADERS})
 if(WIN32)
-target_link_libraries(RTSPClient common live555)
+target_link_libraries(RTSPClient common ffmpeg)
 else()
 target_link_libraries(RTSPClient common BasicUsageEnvironment liveMedia groupsock UsageEnvironment)
 endif()

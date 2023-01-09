@@ -229,9 +229,6 @@ public:
     
     
     bool encode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength);
-    bool readSPS(unsigned char *&dst, size_t &dstLength);
-private:
-    void getSPSPPS();
 
 private:
     int width_ = 1920;
@@ -241,13 +238,12 @@ private:
     MppCtx ctx_;
     MppApi *mpi_;
     MppPollType timeout = MPP_POLL_BLOCK;
-    std::pair<unsigned char *, size_t> SPS_;
 };
 
 EncoderH264::impl::impl() {
     test_ctx_init(&enc_, width_, height_);
 
-    //ÉèÖÃbuffer
+    //è®¾ç½®buffer
     int ret = mpp_buffer_group_get_internal(&enc_->buf_grp, MPP_BUFFER_TYPE_DRM);
     if (ret) {
         //LOG_ERROR("failed to get mpp buffer group ret {}", ret);
@@ -257,7 +253,7 @@ EncoderH264::impl::impl() {
     ret = mpp_buffer_get(enc_->buf_grp, &enc_->frm_buf, enc_->frame_size + enc_->header_size);
     ret = mpp_buffer_get(enc_->buf_grp, &enc_->pkt_buf, enc_->frame_size);
 
-    //³õÊ¼»¯
+    //åˆå§‹åŒ–
     ret = mpp_create(&ctx_, &mpi_);
     if (ret) {
         //LOG_ERROR("Error on mpp_create code [{}]", ret);
@@ -290,8 +286,6 @@ EncoderH264::impl::impl() {
         //LOG_ERROR("test mpp setup failed ret %d\n", ret);
         return;
     }
-
-    getSPSPPS();
 }
 
 EncoderH264::impl::~impl() {
@@ -314,7 +308,7 @@ bool EncoderH264::impl::encode(unsigned char *src, size_t length, unsigned char 
     mpp_frame_set_fmt(frame, MPP_FMT_BGR888);
     mpp_frame_set_eos(frame, 1);
 
-    //×¼±¸Êý¾Ý
+    //å‡†å¤‡æ•°æ®
     void *frameBuf = mpp_buffer_get_ptr(enc_->frm_buf);
 
     memcpy(frameBuf, src, length);
@@ -358,39 +352,6 @@ bool EncoderH264::impl::encode(unsigned char *src, size_t length, unsigned char 
     mpp_packet_deinit(&packet);
     return true;
 }
-
-void EncoderH264::impl::getSPSPPS() {
-    MppPacket packet = NULL;
-
-    mpp_packet_init_with_buffer(&packet, enc_->pkt_buf);
-    mpp_packet_set_length(packet, 0);
-
-    int ret = mpi_->control(ctx_, MPP_ENC_GET_HDR_SYNC, packet);
-
-    if (ret) {
-        //LOG_ERROR("mpi control enc get extra info failed\n");
-        return;
-    } 
-    
-    /* get and write sps/pps for H.264 */
-    void *ptr   = mpp_packet_get_pos(packet);
-    size_t len  = mpp_packet_get_length(packet);
-    unsigned char *buf = new unsigned char[len];
-
-    memcpy(buf, ptr, len);
-    SPS_ = std::make_pair(buf, len);
-
-    mpp_packet_deinit(&packet);
-}
-
-bool EncoderH264::impl::readSPS(unsigned char *&dst, size_t &dstLength) {
-    dstLength = SPS_.second;
-    dst = new unsigned char[dstLength];
-
-    memcpy(dst, SPS_.first, dstLength);
-    return true;
-}
-
 //----------------------------------------------------------------------------------------------------
 EncoderH264::EncoderH264() {
     impl_ = new impl();
@@ -405,8 +366,4 @@ EncoderH264::~EncoderH264() {
 bool EncoderH264::encode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength)
 {
     return impl_->encode(src, length, dst, dstLength);
-}
-
-bool EncoderH264::readSPS(unsigned char *&dst, size_t &dstLength) {
-    return impl_->readSPS(dst, dstLength);
 }
