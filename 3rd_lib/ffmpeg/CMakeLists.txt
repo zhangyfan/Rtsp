@@ -34,7 +34,14 @@ set_target_properties(avutil PROPERTIES
     IMPORTED_LOCATION_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/lib/avutil.lib"
 )
 
+add_library(swscale UNKNOWN IMPORTED GLOBAL)
+set_target_properties(swscale PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+    IMPORTED_LOCATION_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/lib/swscale.lib"
+    IMPORTED_LOCATION_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/lib/swscale.lib"
+)
+
 add_library(ffmpeg INTERFACE IMPORTED GLOBAL)
 set_property(TARGET ffmpeg PROPERTY
-  INTERFACE_LINK_LIBRARIES avcodec avdevice avfilter avformat avutil)
+  INTERFACE_LINK_LIBRARIES avcodec avdevice avfilter avformat avutil swscale)
 endif()

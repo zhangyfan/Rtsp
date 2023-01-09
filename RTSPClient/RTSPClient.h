@@ -48,7 +48,7 @@ public:
      * @brief 设置获得帧时的回调
      * 
      */
-    void setFrameCallback(const std::function<void (unsigned char *, size_t, const char *)> &);
+    void setFrameCallback(const std::function<void (unsigned char *, size_t)> &);
 
     /**
      * @brief 开始执行获得流
@@ -56,7 +56,17 @@ public:
      */
     void run();
 
+    /**
+     * @brief 获得视频宽度
+     *
+    */
     int getVideoWidth();
+
+    
+    /**
+     * @brief 获得视频高度
+     *
+     */
     int getVideoHeight();
 
 private:

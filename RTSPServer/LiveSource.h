@@ -8,19 +8,24 @@
 class LiveSource : public FramedSource {
 public:
     static LiveSource *createNew(UsageEnvironment &env);
-    static EventTriggerId eventTriggerId;
-    
-    static void addFrame(unsigned char *data, size_t length);
-protected:
+    static void deliverFrameStub(void *clientData);
+
     LiveSource(UsageEnvironment &env);
     virtual ~LiveSource(void);
 
-private:
-    virtual void doGetNextFrame();
-    static void deliverFrame0(void *clientData);
-    void deliverFrame();
+    void addFrame(unsigned char *data, size_t length);
 
 private:
-    static unsigned referenceCount;
-    timeval currentTime_;
+    virtual void doGetNextFrame();
+    virtual void doStopGettingFrames();
+    void deliverFrame();
+    std::pair<unsigned char *, size_t> getFrame();
+
+private:
+    using FrameType = std::pair<unsigned char *, size_t>;
+    
+    std::queue<FrameType> queue_;
+    std::mutex mtx_;
+    std::condition_variable cond_;
+    EventTriggerId triggerId_;
 };

@@ -14,38 +14,23 @@ int main()
     
     Codec::Decoder *decoder = Codec::Decoder::createNew("H264");
     Codec::Encoder *encoder = Codec::Encoder::createNew("H264");
-    unsigned char NAL[] = {0, 0, 0, 1};
+    FILE *file = fopen("out.yuv", "wb");
 
-    FILE *file = fopen("enc.h264", "wb");
+    server.start(8556, "1");
 
-    server.start(8554, "1");
-
-    LOG_INFO("System starting ......");
-
-    {
-        unsigned char *data;
-        size_t length;
-        
-        encoder->readSPS(data, length);
-        
-        LOG_INFO("SPS read {}", length);
-        fwrite(data, 1, length, file);
-        fflush(file);
+    if (!client.open("127.0.0.1", 8554, "1")) {
+        LOG_ERROR("stream can not open!!!!");
+        return 0;
     }
 
-    client.open("192.168.1.107", 8554, "testStream");
-    client.setFrameCallback([&encoder, &decoder, NAL, &server, file](unsigned char *data, size_t length, const char *id) {
-        //还原NAL
-        unsigned char *dataNAL = new unsigned char[length + 4];
+    LOG_INFO("Stream open success");
 
-        memcpy(dataNAL, NAL, 4);
-        memcpy(dataNAL + 4, data, length);
-
+    client.setFrameCallback([&encoder, &decoder, &server, file](unsigned char *data, size_t length) {
         //解码并保存yuv数据
         unsigned char *yuv = nullptr;
         size_t yuv_size = 0;
 
-        decoder->decode(dataNAL, length + 4, yuv, yuv_size);
+        decoder->decode(data, length, yuv, yuv_size);
 
         if (yuv_size != 0) {
             unsigned char *encoded = nullptr;
@@ -53,22 +38,17 @@ int main()
 
             encoder->encode(yuv, yuv_size, encoded, encoded_size);
 
-            fwrite(encoded, 1, encoded_size, file);
-            fflush(file);
-            //server.addFrame(encoded, encoded_size);
-            delete[] encoded;
+            if (encoded) {
+                server.addFrame(encoded, encoded_size);
+                delete[] encoded;
+            }
         }
 
-        //server.addFrame(data, length);
-        delete[] dataNAL;
         delete[] yuv;
         std::this_thread::sleep_for(std::chrono::microseconds(45));
     });
 
-    std::thread clientThread([&client]() {
-        client.run();
-    });
-
-    clientThread.join();
+    client.run();
+    std::cin.get();
     LOG_INFO("System exiting ......");
 }

@@ -1,6 +1,7 @@
 #include "RTSPServer.h"
 #include "logger.h"
 #include "H264LiveServerMediaSession.h"
+#include "LiveSource.h"
 #include <BasicUsageEnvironment.hh>
 #include <GroupsockHelper.hh>
 #include <liveMedia.hh>
@@ -28,6 +29,8 @@ private:
     BasicUsageEnvironment *env_ = nullptr;
     ::RTSPServer *server_;
     H264LiveServerMediaSession *liveSubSession_;
+    LiveSource *source_;
+    StreamReplicator *inputDevice_;
 };
 
 RTSPServer::impl::impl() {
@@ -48,16 +51,15 @@ void RTSPServer::impl::start(int port, const std::string &stream) {
         return;
     }
 
-    ServerMediaSession *sms = ServerMediaSession::createNew(
-        *env_, 
-        stream.c_str(), 
-        NULL,
-        "Session streamed by \"testH264VideoStreamer\"",
-        True);
+    source_      = new LiveSource(*env_);
+    inputDevice_ = StreamReplicator::createNew(*env_, source_, false);
 
-    liveSubSession_ = H264LiveServerMediaSession::createNew(*env_, True);
+    ServerMediaSession *sms = ServerMediaSession::createNew(*env_, stream.c_str(), stream.c_str(), "Session streamed by Mr.Chang");
+    liveSubSession_ = H264LiveServerMediaSession::createNew(*env_, inputDevice_);
+
     sms->addSubsession(liveSubSession_);
     server_->addServerMediaSession(sms);
+    //server_->setUpTunnelingOverHTTP(8080);
 
     //打印日志
     char *url = server_->rtspURL(sms);
@@ -73,8 +75,8 @@ void RTSPServer::impl::start(int port, const std::string &stream) {
 }
 
 bool RTSPServer::impl::addFrame(unsigned char* data, size_t length) {
-    if (liveSubSession_) {
-        liveSubSession_->addFrame(data, length);
+    if (source_) {
+        source_->addFrame(data, length);
         return true;
     }
 
