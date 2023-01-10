@@ -28,14 +28,12 @@ private:
     std::function<void(unsigned char *, size_t)> onFrame_;
     AVFormatContext *fmtCtx_;
     AVCodecContext *codecCtx_;
+    int vsIndex = 0;
 };
 
 ProxyRTSPClient::impl::impl() {
     fmtCtx_ = avformat_alloc_context();
     codecCtx_ = NULL;
-
-    av_register_all();
-    avformat_network_init();
 }
 
 ProxyRTSPClient::impl::~impl() {
@@ -57,15 +55,24 @@ std::string ProxyRTSPClient::impl::makeURL(const std::string &addr, int port, co
 
 bool ProxyRTSPClient::impl::open(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd) {
     std::string url = makeURL(addr, port, path, user, passwd);
-    
+    int ret         = avformat_open_input(&fmtCtx_, url.c_str(), NULL, NULL);
+
     // open RTSP
-    if (avformat_open_input(&fmtCtx_, url.c_str(), NULL, NULL) != 0) {
+    if (ret != 0) {
         return false;
     }
 
     if (avformat_find_stream_info(fmtCtx_, NULL) < 0) {
         return false;
     }
+
+    //for (unsigned int i = 0; i < fmtCtx_->nb_streams; ++i) {
+    //    const AVStream *stream = fmtCtx_->streams[i];
+    //    
+    //    if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+    //        vsIndex = stream->index;
+    //    }
+    //}
 
     return true;
 }
@@ -83,26 +90,23 @@ void ProxyRTSPClient::impl::setFrameCallback(const std::function<void(unsigned c
 
 void ProxyRTSPClient::impl::run() 
 {
-    std::thread thread([this]() {
-        AVPacket packet;
+    AVPacket packet;
 
-        av_init_packet(&packet);
+    av_init_packet(&packet);
 
-        while (true) {
-            int ret = av_read_frame(fmtCtx_, &packet);
+    while (true) {
+        int ret = av_read_frame(fmtCtx_, &packet);
 
-            if (ret >= 0 && onFrame_) {
-                onFrame_(packet.data, packet.size);
-            }
+        if (ret >= 0 && onFrame_ && packet.stream_index == vsIndex) {
+            onFrame_(packet.data, packet.size);
         }
-        av_free_packet(&packet);
-    });
-    thread.detach();
+    }
+    av_free_packet(&packet);
 }
 
 int ProxyRTSPClient::impl::getVideoWidth() {
     if (fmtCtx_->nb_streams > 0) {
-        return fmtCtx_->streams[0]->codec->width;
+        return fmtCtx_->streams[vsIndex]->codecpar->width;
     }
 
     return 0;
@@ -110,7 +114,7 @@ int ProxyRTSPClient::impl::getVideoWidth() {
 
 int ProxyRTSPClient::impl::getVideoHeight() {
     if (fmtCtx_->nb_streams > 0) {
-        return fmtCtx_->streams[0]->codec->height;
+        return fmtCtx_->streams[vsIndex]->codecpar->width;
     }
 
     return 0;

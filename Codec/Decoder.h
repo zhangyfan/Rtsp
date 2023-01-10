@@ -14,13 +14,14 @@
 #include "Codec_global.h"
 #include <string>
 
-namespace Codec
-{
+struct AVFrame;
+
+namespace Codec {
 class CODEC_EXPORT Decoder
 {
 public:
     static Decoder *createNew(const std::string &codecName);
-    virtual bool decode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength) = 0;
+    virtual AVFrame *decode(unsigned char *src, size_t length) = 0;
 };
 }
 

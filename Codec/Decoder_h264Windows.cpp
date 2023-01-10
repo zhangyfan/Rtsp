@@ -16,7 +16,7 @@ public:
     impl();
     ~impl();
 
-    bool decode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength);
+    AVFrame *decode(unsigned char *src, size_t length);
 
 private:
     AVCodec *codec_;
@@ -27,7 +27,7 @@ DecoderH264::impl::impl() {
 #ifdef _MSC_VER
     codec_ = avcodec_find_decoder(AV_CODEC_ID_H264);
 #else
-    codec_ = avcodec_find_decoder_by_name("h264"/*"h264_rkmpp"*/);
+    codec_ = avcodec_find_decoder_by_name("h264");
 #endif
     if (!codec_) {
         LOG_ERROR("Error on find h.264 decoder from ffmpeg!");
@@ -50,51 +50,34 @@ DecoderH264::impl::impl() {
 DecoderH264::impl::~impl() {
 }
 
-bool DecoderH264::impl::decode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength) {
+AVFrame *DecoderH264::impl::decode(unsigned char *src, size_t length) {
     AVPacket *pPacket = av_packet_alloc();
     AVFrame *pFrame   = av_frame_alloc();
 
     if (!pPacket || !pFrame) {
         LOG_ERROR("Error on alloc packet or frame");
-        return false;
+        return nullptr;
     }
 
     av_init_packet(pPacket);
     
-    pPacket->size = length;
+    pPacket->size = (int)length;
     pPacket->data = src;
 
     int ret       = avcodec_send_packet(context_, pPacket);
 
     if (ret < 0) {
-        return false;
+        return nullptr;
     }
 
     // 解码
     ret = avcodec_receive_frame(context_, pFrame);
         
     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || ret < 0) {
-        return false;
+        return nullptr;
     }
 
-    int width        = pFrame->width;
-    int height       = pFrame->height;
-
-    dstLength = width * height * 3;
-    dst       = (unsigned char *)malloc(dstLength);
-
-    //转换为BGR24
-    SwsContext* swsContext = swsContext = sws_getContext(pFrame->width, pFrame->height, AV_PIX_FMT_YUV420P,pFrame->width, pFrame->height, AV_PIX_FMT_BGR24, NULL, NULL, NULL, NULL);
-    int linesize[8] = {pFrame->linesize[0] * 3};
-    int numBytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, pFrame->width, pFrame->height, 1);
-    auto buffer = (uint8_t*) malloc(numBytes * sizeof(uint8_t));
-    uint8_t* bgrBuffer[8] = {buffer};
-
-    sws_scale(swsContext, pFrame->data, pFrame->linesize, 0, pFrame->height, bgrBuffer, linesize);
-    memcpy(dst, bgrBuffer[0], dstLength);
-
-    free(buffer);
-    return true;
+    return pFrame;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -108,6 +91,6 @@ DecoderH264::~DecoderH264() {
     }
 }
 
-bool DecoderH264::decode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength) {
-    return impl_->decode(src, length, dst, dstLength);
+AVFrame * DecoderH264::decode(unsigned char *src, size_t length) {
+    return impl_->decode(src, length);
 }

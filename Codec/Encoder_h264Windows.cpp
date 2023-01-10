@@ -28,6 +28,7 @@ public:
     impl();
     ~impl();
 
+    void init(int width, int height, int fps);
     bool encode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength);
 
 private:
@@ -36,6 +37,13 @@ private:
 };
 
 EncoderH264::impl::impl() {
+ 
+}
+
+EncoderH264::impl::~impl() {
+}
+
+void EncoderH264::impl::init(int width, int height, int fps) {
     codec_ = avcodec_find_encoder(AV_CODEC_ID_H264);
 
     if (!codec_) {
@@ -50,21 +58,18 @@ EncoderH264::impl::impl() {
         return;
     }
 
-    context_->width = 1920;
-    context_->height = 816;
-    context_->time_base = {1, 25};
-    context_->framerate = {25, 1};
-    context_->gop_size  = 10;
+    context_->width        = width;
+    context_->height       = height;
+    context_->time_base    = {1, fps};
+    context_->framerate    = {fps, 1};
+    context_->gop_size     = fps;
     context_->max_b_frames = 1;
-    context_->pix_fmt      = AV_PIX_FMT_BGR24;
+    context_->pix_fmt      = AV_PIX_FMT_YUV420P;
 
     if (avcodec_open2(context_, codec_, nullptr) < 0) {
         LOG_ERROR("Error on avcodec_open2!");
         return;
     }
-}
-
-EncoderH264::impl::~impl() {
 }
 
 bool EncoderH264::impl::encode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength) {
@@ -106,6 +111,10 @@ EncoderH264::~EncoderH264() {
     if (impl_) {
         delete impl_;
     }
+}
+
+void EncoderH264::init(int width, int height, int fps) {
+    impl_->init(width, height, fps);
 }
 
 bool EncoderH264::encode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength) {

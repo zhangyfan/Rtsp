@@ -32,7 +32,7 @@ public:
      * @return true 
      * @return false 
      */
-    virtual bool decode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength);
+    virtual AVFrame * decode(unsigned char *src, size_t length);
 
 private:
     class impl;

@@ -1,2 +1,6 @@
 add_executable(RtspProxy main.cpp)
-target_link_libraries(RtspProxy common RTSPClient RTSPServer Codec)
+if(WIN32)
+target_link_libraries(RtspProxy common RTSPClient RTSPServer RTMPServer Codec ffmpeg)
+else()
+target_link_libraries(RtspProxy common RTSPClient RTSPServer RTMPServer Codec avcodec avformat avutil swscale avdevice)
+endif()

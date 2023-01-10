@@ -21,6 +21,8 @@ class CODEC_EXPORT Encoder
 {
 public:
     static Encoder *createNew(const std::string &codecName);
+
+    virtual void init(int width, int height, int fps) = 0;
     virtual bool encode(unsigned char *src, size_t length, unsigned char *&dst, size_t &dstLength) = 0;
 };
 }

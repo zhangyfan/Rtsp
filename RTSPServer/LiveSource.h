@@ -3,7 +3,6 @@
 #include <mutex>
 #include <queue>
 #include <condition_variable>
-#include "readerwriterqueue.h"
 
 class LiveSource : public FramedSource {
 public:

@@ -21,6 +21,8 @@ class EncoderH264: public Encoder
 public:
     EncoderH264();
     ~EncoderH264();
+
+    virtual void init(int width, int height, int fps);
     
     /**
      * @brief 编码
