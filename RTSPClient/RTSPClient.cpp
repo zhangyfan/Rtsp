@@ -54,7 +54,7 @@ std::string ProxyRTSPClient::impl::makeURL(const std::string &addr, int port, co
 }
 
 bool ProxyRTSPClient::impl::open(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd) {
-    std::string url = makeURL(addr, port, path, user, passwd);
+    std::string url = addr; // makeURL(addr, port, path, user, passwd);
     int ret         = avformat_open_input(&fmtCtx_, url.c_str(), NULL, NULL);
 
     // open RTSP
@@ -66,13 +66,13 @@ bool ProxyRTSPClient::impl::open(const std::string &addr, int port, const std::s
         return false;
     }
 
-    //for (unsigned int i = 0; i < fmtCtx_->nb_streams; ++i) {
-    //    const AVStream *stream = fmtCtx_->streams[i];
-    //    
-    //    if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-    //        vsIndex = stream->index;
-    //    }
-    //}
+    for (unsigned int i = 0; i < fmtCtx_->nb_streams; ++i) {
+        const AVStream *stream = fmtCtx_->streams[i];
+        
+        if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            vsIndex = stream->index;
+        }
+    }
 
     return true;
 }

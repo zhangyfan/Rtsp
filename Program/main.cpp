@@ -3,6 +3,7 @@
 #include "RTMPServer.h"
 #include "Decoder.h"
 #include "Encoder.h"
+#include "Operators.h"
 #include <iostream>
 #include <fstream>
 extern "C" {
@@ -16,9 +17,10 @@ RTMPServer *server;
 Codec::Decoder *decoder;
 Codec::Encoder *encoder;
 FILE *file;
+Operators *operators = nullptr;
 
-void onDecodedYUV(AVFrame *frame);
-std::pair<unsigned char *, size_t> reencode(AVFrame *frame);
+void onDecodedYUV(unsigned char *BGR888, unsigned char *YUV420, int width, int height);
+std::pair<unsigned char *, size_t> reencode(unsigned char *YUV420, size_t length);
 
 std::pair<unsigned char*, size_t> toYUV420(AVFrame *frame) {
     int width  = frame->width;
@@ -54,74 +56,75 @@ std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame) {
 void onReceiveFrame(unsigned char *data, size_t length) {
     //解码并保存yuv数据
     AVFrame *avFrame = decoder->decode(data, length);
-
     if (!avFrame) {
         return;
     }
+    //拷贝一份BGR888数据，给算法调用
+    unsigned char *BGR888 = nullptr;
+    size_t BGRSize = 0;
+    unsigned char *YUV420 = nullptr;
+    size_t YUVSize        = 0;
 
-    onDecodedYUV(avFrame);
+    std::tie(BGR888, BGRSize) = toBGR888(avFrame);
+    std::tie(YUV420, YUVSize) = toYUV420(avFrame);
+
+    onDecodedYUV(BGR888, YUV420, avFrame->width, avFrame->height);
 
     //重新编码
     unsigned char *h264Data = nullptr;
     size_t h264Length       = 0;
 
-    std::tie(h264Data, h264Length) = reencode(avFrame);
+    std::tie(h264Data, h264Length) = reencode(YUV420, YUVSize);
 
     if (h264Data) {
         server->addFrame(h264Data, h264Length);
     }
 
     delete[] h264Data;
+    free(BGR888);
+    free(YUV420);
     av_frame_free(&avFrame);
 }
 
-void onDecodedYUV(AVFrame *frame) {
-    //拷贝一份BGR888数据，给算法调用
-    unsigned char *BGR888 = nullptr;
-    size_t length = 0;
-
-    std::tie(BGR888, length) = toBGR888(frame);
-    free(BGR888);
+void onDecodedYUV(unsigned char *BGR888, unsigned char *YUV420, int width, int height) {
+    //调用算法
+    if (operators) {
+        operators->detect(BGR888, width, height, YUV420);
+    }
 }
 
-std::pair<unsigned char*, size_t> reencode(AVFrame *frame) {
-    unsigned char *YUV420 = nullptr;
-    size_t length;
-
-    std::tie(YUV420, length) = toYUV420(frame);
-
+std::pair<unsigned char*, size_t> reencode(unsigned char *YUV420, size_t length) {
     //编码
     unsigned char *encoded = nullptr;
     size_t encodedSize = 0;
 
     encoder->encode(YUV420, length, encoded, encodedSize);
-    free(YUV420);
     return std::make_pair(encoded, encodedSize);
 }
 
-int main()
-{
+int main(int argc, char *argv[]) {
     Common::InitLogger();    
     decoder = Codec::Decoder::createNew("H264");
     encoder = Codec::Encoder::createNew("H264");
 
-    file    = fopen("enc.h264", "wb");
-    
     client  = new RTSP::ProxyRTSPClient();
 
-    if (!client->open("192.168.1.106", 554, "", "admin", "!QAZ2wsx")) {
+    if (!client->open(argv[1], 0, "")) {
         LOG_ERROR("stream can not open!!!!");
         return 0;
     }
+
+    operators = new Operators();
+    operators->init();
     
     //初始化编码器，解码器因为有PPS/SPS所有不需要额外的信息
-    int width = 1920;//client->getVideoWidth();
-    int height = 1080;//client->getVideoHeight();
+    int width  = 1920; // client->getVideoWidth();
+    int height = 1080; // client->getVideoHeight();
 
     encoder->init(width, height, 25);
 
     server = new RTMPServer();
-    server->init(width, height, 25);
+    server->init(width, height, 25, argv[2]);
     server->start();
 
     LOG_INFO("Stream open success");

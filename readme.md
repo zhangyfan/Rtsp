@@ -16,8 +16,17 @@ cmake ../ -DCMAKE_TOOLCHAIN_FILE=../cross.cmake
 5. 执行make命令
 6. 执行完成在项目的bin目录下可得到.so和可执行文件
 
+-------
++ 运行
+  
+bin/Release上传了Windows下的可执行文件，执行命令需要两个参数
+```
+RtspProxy.exe rtsp://admin:!QAZ2wsx@192.168.1.103/ rtmp://127.0.0.1:1935/1
+```
+
+第一个参数是设备RTSP链接，第二个参数是RTMP推流地址
+RTSP链接格式为: rtps://账号:密码@IP[:PORT]/
+-------
 TODO:
 
 + linux下目前为了调试方便解码使用的ffmpeg软解（硬解接口一样，但是AVFrame是MPP自己的数据格式）
-+ rtsp客户端换成ffmpeg
-+ rtmp推流

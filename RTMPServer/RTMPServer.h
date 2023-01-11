@@ -20,7 +20,7 @@ public:
     RTMPServer();
     ~RTMPServer();
 
-    void init(int width, int height, int fps);
+    void init(int width, int height, int fps, const std::string &url);
 
     /**
      * @brief 开始RTMP服务

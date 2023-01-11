@@ -44,7 +44,7 @@ EncoderH264::impl::~impl() {
 }
 
 void EncoderH264::impl::init(int width, int height, int fps) {
-    codec_ = avcodec_find_encoder(AV_CODEC_ID_H264);
+    codec_ = avcodec_find_encoder_by_name("h264_nvenc");
 
     if (!codec_) {
         LOG_ERROR("Error on find h.264 encoder from ffmpeg!");

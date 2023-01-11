@@ -19,13 +19,17 @@ public:
     AVFrame *decode(unsigned char *src, size_t length);
 
 private:
+    void initHWContext();
+
+private:
     AVCodec *codec_;
     AVCodecContext *context_;
+    AVBufferRef *hwCtx_ = nullptr;
 };
 
 DecoderH264::impl::impl() {
 #ifdef _MSC_VER
-    codec_ = avcodec_find_decoder(AV_CODEC_ID_H264);
+    codec_ = avcodec_find_decoder_by_name("h264");
 #else
     codec_ = avcodec_find_decoder_by_name("h264");
 #endif
@@ -48,6 +52,17 @@ DecoderH264::impl::impl() {
 }
 
 DecoderH264::impl::~impl() {
+}
+
+void DecoderH264::impl::initHWContext() {
+    int err = 0;
+
+    if ((err = av_hwdevice_ctx_create(&hwCtx_, AV_HWDEVICE_TYPE_DRM, "drm", NULL, 0)) < 0) {
+        LOG_ERROR("Failed to create specified HW device [{}]", err);
+        return;
+    }
+
+    context_->hw_device_ctx = av_buffer_ref(hwCtx_);
 }
 
 AVFrame *DecoderH264::impl::decode(unsigned char *src, size_t length) {

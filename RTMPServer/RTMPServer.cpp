@@ -35,7 +35,7 @@ public:
     impl();
     ~impl();
 
-    void init(int width, int height, int fps);
+    void init(int width, int height, int fps, const std::string &url);
     void start();
     bool addFrame(unsigned char *data, size_t length);
 
@@ -55,8 +55,10 @@ RTMPServer::impl::impl() {
 RTMPServer::impl::~impl() {
 }
 
-void RTMPServer::impl::init(int width, int height, int fps) {
+void RTMPServer::impl::init(int width, int height, int fps, const std::string &url) {
+    av_register_all();
     avformat_network_init();
+    rtmpURL = url;
 
     int ret                    = avformat_alloc_output_context2(&fmtCtx_, NULL, "flv", rtmpURL.c_str());
 #ifdef _MSC_VER
@@ -92,9 +94,11 @@ void RTMPServer::impl::init(int width, int height, int fps) {
         LOG_ERROR("open video codec failed !");
     }
 
-    //if (avcodec_parameters_from_context(vstream_->codecpar, codec_context_) < 0) {
-    //    LOG_ERROR("acvodec_parameters_from_context failed!\n");
-    //}
+    vstream_->codecpar = avcodec_parameters_alloc();
+
+    if (avcodec_parameters_from_context(vstream_->codecpar, codec_context_) < 0) {
+        LOG_ERROR("acvodec_parameters_from_context failed!\n");
+    }
 
     av_dump_format(fmtCtx_, 0, rtmpURL.c_str(), 1);
 }
@@ -170,6 +174,6 @@ bool RTMPServer::addFrame(unsigned char *data, size_t length) {
     return impl_->addFrame(data, length);
 }
 
-void RTMPServer::init(int width, int height, int fps) {
-    return impl_->init(width, height, fps);
+void RTMPServer::init(int width, int height, int fps, const std::string &url) {
+    return impl_->init(width, height, fps, url);
 }
