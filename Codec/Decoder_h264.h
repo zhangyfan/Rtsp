@@ -32,7 +32,7 @@ public:
      * @return true 
      * @return false 
      */
-    virtual AVFrame * decode(unsigned char *src, size_t length);
+    virtual std::vector<AVFrame *> decode(unsigned char *src, size_t length);
 
 private:
     class impl;

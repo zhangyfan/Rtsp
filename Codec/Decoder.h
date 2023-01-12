@@ -13,6 +13,7 @@
 #pragma once
 #include "Codec_global.h"
 #include <string>
+#include <vector>
 
 struct AVFrame;
 
@@ -21,7 +22,7 @@ class CODEC_EXPORT Decoder
 {
 public:
     static Decoder *createNew(const std::string &codecName);
-    virtual AVFrame *decode(unsigned char *src, size_t length) = 0;
+    virtual std::vector<AVFrame *> decode(unsigned char *src, size_t length) = 0;
 };
 }
 

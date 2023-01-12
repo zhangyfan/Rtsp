@@ -114,7 +114,7 @@ int ProxyRTSPClient::impl::getVideoWidth() {
 
 int ProxyRTSPClient::impl::getVideoHeight() {
     if (fmtCtx_->nb_streams > 0) {
-        return fmtCtx_->streams[vsIndex]->codecpar->width;
+        return fmtCtx_->streams[vsIndex]->codecpar->height;
     }
 
     return 0;

@@ -84,7 +84,7 @@ MPP_RET test_ctx_init(MpiEncData **data, int width, int height)
     p->height       = height;
     p->hor_stride   = MPP_ALIGN(width, 16);
     p->ver_stride   = MPP_ALIGN(height, 16);
-    p->fmt          = MPP_FMT_YUV420P;
+    p->fmt          = MPP_FMT_YUV420SP;
     p->type         = MPP_VIDEO_CodingAVC;
     p->bps          = width * height / 8 * 30;
     p->bps_min      = p->bps * 1 / 16;
@@ -99,7 +99,7 @@ MPP_RET test_ctx_init(MpiEncData **data, int width, int height)
     p->fps_out_den  = 1;
     p->fps_out_num  = 30;
     p->gop          = 30;
-    p->frame_size = MPP_ALIGN(p->hor_stride, 64) * MPP_ALIGN(p->ver_stride, 64) * 4;
+    p->frame_size   = MPP_ALIGN(p->hor_stride, 64) * MPP_ALIGN(p->ver_stride, 64) * 2;
     p->header_size = 0;
 
 RET:
@@ -309,7 +309,7 @@ bool EncoderH264::impl::encode(unsigned char *src, size_t length, unsigned char 
     mpp_frame_set_height(frame, height_);
     mpp_frame_set_hor_stride(frame, enc_->hor_stride);
     mpp_frame_set_ver_stride(frame, enc_->ver_stride);
-    mpp_frame_set_fmt(frame, MPP_FMT_BGR888);
+    mpp_frame_set_fmt(frame, MPP_FMT_YUV420SP);
     mpp_frame_set_eos(frame, 1);
 
     //准备数据

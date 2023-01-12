@@ -1,10 +1,12 @@
 #include "Decoder_h264.h"
 #include "logger.h"
 #include <mutex>
+#include <thread>
 extern "C" {
     #include "libavcodec/avcodec.h"
     #include "libavutil/imgutils.h"
     #include "libswscale/swscale.h"
+    #include "libavutil/hwcontext_drm.h"
 }
 
 // Windows下的解码实现使用ffmpeg解码器，如果要编译可以先下载一个ffmpeg
@@ -16,7 +18,7 @@ public:
     impl();
     ~impl();
 
-    AVFrame *decode(unsigned char *src, size_t length);
+    std::vector<AVFrame *> decode(unsigned char *src, size_t length);
 
 private:
     void initHWContext();
@@ -31,7 +33,8 @@ DecoderH264::impl::impl() {
 #ifdef _MSC_VER
     codec_ = avcodec_find_decoder_by_name("h264");
 #else
-    codec_ = avcodec_find_decoder_by_name("h264");
+    //initHWContext();
+    codec_ = avcodec_find_decoder_by_name("h264_rkmpp");
 #endif
     if (!codec_) {
         LOG_ERROR("Error on find h.264 decoder from ffmpeg!");
@@ -57,7 +60,7 @@ DecoderH264::impl::~impl() {
 void DecoderH264::impl::initHWContext() {
     int err = 0;
 
-    if ((err = av_hwdevice_ctx_create(&hwCtx_, AV_HWDEVICE_TYPE_DRM, "drm", NULL, 0)) < 0) {
+    if ((err = av_hwdevice_ctx_create(&hwCtx_, AV_HWDEVICE_TYPE_DRM, NULL, NULL, 0)) < 0) {
         LOG_ERROR("Failed to create specified HW device [{}]", err);
         return;
     }
@@ -65,13 +68,12 @@ void DecoderH264::impl::initHWContext() {
     context_->hw_device_ctx = av_buffer_ref(hwCtx_);
 }
 
-AVFrame *DecoderH264::impl::decode(unsigned char *src, size_t length) {
+std::vector<AVFrame *> DecoderH264::impl::decode(unsigned char *src, size_t length) {
     AVPacket *pPacket = av_packet_alloc();
-    AVFrame *pFrame   = av_frame_alloc();
-
-    if (!pPacket || !pFrame) {
+    
+    if (!pPacket) {
         LOG_ERROR("Error on alloc packet or frame");
-        return nullptr;
+        return std::vector<AVFrame *>();
     }
 
     av_init_packet(pPacket);
@@ -79,20 +81,39 @@ AVFrame *DecoderH264::impl::decode(unsigned char *src, size_t length) {
     pPacket->size = (int)length;
     pPacket->data = src;
 
+    std::vector<AVFrame *> res;
     int ret       = avcodec_send_packet(context_, pPacket);
 
+    if (ret == -11) {
+        AVFrame *pFrame = av_frame_alloc();
+        ret             = avcodec_receive_frame(context_, pFrame);
+
+        if (ret == 0) {
+            res.push_back(pFrame);
+        } else {
+            av_frame_free(&pFrame);
+        }
+
+        avcodec_send_packet(context_, pPacket);
+    }
+
     if (ret < 0) {
-        return nullptr;
+        return std::vector<AVFrame *>();
     }
 
-    // 解码
-    ret = avcodec_receive_frame(context_, pFrame);
-        
-    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || ret < 0) {
-        return nullptr;
+    while (true) {
+        AVFrame *pFrame = av_frame_alloc();
+        ret = avcodec_receive_frame(context_, pFrame);
+
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || ret < 0) {
+            av_frame_free(&pFrame);
+            break;
+        }
+
+        res.push_back(pFrame);
     }
 
-    return pFrame;
+    return res;
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -106,6 +127,6 @@ DecoderH264::~DecoderH264() {
     }
 }
 
-AVFrame * DecoderH264::decode(unsigned char *src, size_t length) {
+std::vector<AVFrame *> DecoderH264::decode(unsigned char *src, size_t length) {
     return impl_->decode(src, length);
 }
