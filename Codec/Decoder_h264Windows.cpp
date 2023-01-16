@@ -113,6 +113,7 @@ std::vector<AVFrame *> DecoderH264::impl::decode(unsigned char *src, size_t leng
         res.push_back(pFrame);
     }
 
+    av_free_packet(pPacket);
     return res;
 }
 

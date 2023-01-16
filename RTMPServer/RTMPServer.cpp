@@ -40,13 +40,14 @@ public:
     bool addFrame(unsigned char *data, size_t length);
 
 private:
-    int pts = 0;
+    int pts_ = 0;
     std::string rtmpURL = "rtmp://127.0.0.1:1935/1";
     AVFormatContext *fmtCtx_;
     std::atomic_bool connected_ = false;
     AVCodec *codec_;
     AVCodecContext *codec_context_;
     AVStream *vstream_;
+    int64_t startTime_;
 };
 
 RTMPServer::impl::impl() {
@@ -100,6 +101,7 @@ void RTMPServer::impl::init(int width, int height, int fps, const std::string &u
         LOG_ERROR("acvodec_parameters_from_context failed!\n");
     }
 
+    startTime_ = av_gettime();
     av_dump_format(fmtCtx_, 0, rtmpURL.c_str(), 1);
 }
     
@@ -122,7 +124,7 @@ void RTMPServer::impl::start() {
     thread.detach();
 }
 
-bool RTMPServer::impl::addFrame(unsigned char* data, size_t length) {
+bool RTMPServer::impl::addFrame(unsigned char *data, size_t length) {
     if (!connected_) {
         return false;//未连接到RTMP接收方，不发送否则会报错
     }
@@ -135,18 +137,17 @@ bool RTMPServer::impl::addFrame(unsigned char* data, size_t length) {
     pkt.flags |= isI ? AV_PKT_FLAG_KEY : 0;
     pkt.data             = (uint8_t *)data;
     pkt.size             = length;
+    pkt.stream_index     = vstream_->index;
 
     AVRational time_base = {1, 1000};
-    pkt.pts              = av_rescale_q(pts++, time_base, vstream_->time_base);
-
     enum AVRounding rnd  = (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX);
+
+    pkt.pts              = av_rescale_q(pts_++, time_base, vstream_->time_base);
     pkt.dts              = av_rescale_q_rnd(pkt.dts, vstream_->time_base, vstream_->time_base, rnd);
     pkt.duration         = av_rescale_q(pkt.duration, vstream_->time_base, vstream_->time_base);
     pkt.pos              = -1;
 
-    // rescale output packet timestamp values from  codec to stream timebase
-    av_packet_rescale_ts(&pkt, time_base, vstream_->time_base);
-    pkt.stream_index = vstream_->index;
+    av_packet_rescale_ts(&pkt, codec_context_->time_base, vstream_->time_base);
 
     int ret = av_write_frame(fmtCtx_, &pkt);
     if (ret < 0) {

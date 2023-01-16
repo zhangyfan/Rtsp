@@ -51,6 +51,7 @@ std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame) {
     memcpy(data, bgrBuffer[0], length);
     free(buffer);
 
+    sws_freeContext(swsContext);
     return std::make_pair(data, length);
 }
 #else
@@ -122,6 +123,7 @@ std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame) {
         imgCtx = NULL;
     }
 
+    sws_freeContext(imgCtx);
     return std::make_pair(pBGR24, size);
 }
 
@@ -144,7 +146,7 @@ void onReceiveFrame(unsigned char *data, size_t length) {
         unsigned char *YUV420 = nullptr;
         size_t YUVSize        = 0;
 
-        std::tie(BGR888, BGRSize) = toBGR888(avFrame);
+        //std::tie(BGR888, BGRSize) = toBGR888(avFrame);
         std::tie(YUV420, YUVSize) = toYUV420(avFrame);
 
         onDecodedYUV(BGR888, YUV420, avFrame->width, avFrame->height);
@@ -160,8 +162,10 @@ void onReceiveFrame(unsigned char *data, size_t length) {
         }
 
         delete[] h264Data;
-        free(BGR888);
-        free(YUV420);
+#ifdef _MSC_VER
+        free(YUV420); // Linux下不删除
+#endif // _MSC_VER
+        //free(BGR888);
         av_frame_free(&avFrame);
     }
 }

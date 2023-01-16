@@ -99,6 +99,8 @@ bool EncoderH264::impl::encode(unsigned char *src, size_t length, unsigned char 
     dst = new unsigned char[pPacket->size];
     memcpy(dst, pPacket->data, pPacket->size);
 
+    av_free_packet(pPacket);
+    av_frame_free(&pFrame);
     return true;
 }
 
