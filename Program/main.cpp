@@ -1,6 +1,7 @@
 #include "logger.h"
 #include "RTSPClient.h"
 #include "RTMPServer.h"
+#include "RTSPServer.h"
 #include "Decoder.h"
 #include "Encoder.h"
 #include "Operators.h"
@@ -16,7 +17,8 @@ extern "C" {
 }
 
 RTSP::ProxyRTSPClient *client;
-RTMPServer *server;
+//RTMPServer *server;
+RTSP::RTSPServer *server;
 Codec::Decoder *decoder;
 Codec::Encoder *encoder;
 FILE *file;
@@ -244,9 +246,9 @@ int main(int argc, char *argv[]) {
 
     encoder->init(width, height, 25);
 
-    server = new RTMPServer();
-    server->init(width, height, 25, argv[2]);
-    server->start();
+    server = new RTSP::RTSPServer();
+    //server->init(width, height, 25, argv[2]);
+    server->start(8554, argv[2]);
 
     LOG_INFO("Stream open success");
 
