@@ -90,18 +90,18 @@ void ProxyRTSPClient::impl::setFrameCallback(const std::function<void(unsigned c
 
 void ProxyRTSPClient::impl::run() 
 {
-    AVPacket packet;
+    while (true) {    
+        AVPacket packet;
 
-    av_init_packet(&packet);
-
-    while (true) {
+        av_init_packet(&packet);
         int ret = av_read_frame(fmtCtx_, &packet);
 
         if (ret >= 0 && onFrame_ && packet.stream_index == vsIndex) {
             onFrame_(packet.data, packet.size);
         }
+
+        av_free_packet(&packet);
     }
-    av_free_packet(&packet);
 }
 
 int ProxyRTSPClient::impl::getVideoWidth() {

@@ -89,7 +89,7 @@ MPP_RET test_ctx_init(MpiEncData **data, int width, int height)
     p->bps          = width * height / 8 * 30;
     p->bps_min      = p->bps * 1 / 16;
     p->bps_max      = p->bps * 17 / 16;
-    p->rc_mode      = MPP_ENC_RC_MODE_VBR;
+    p->rc_mode      = MPP_ENC_RC_MODE_CBR;
     p->num_frames   = 30;
 
     p->fps_in_flex  = 0;
@@ -189,7 +189,7 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncData *p)
         * 40 / 41 / 42         - 1080p@30fps / 1080p@30fps / 1080p@60fps
         * 50 / 51 / 52         - 4K@30fps
         */
-    mpp_enc_cfg_set_s32(cfg, "h264:level", 40);
+    mpp_enc_cfg_set_s32(cfg, "h264:level", 41);
     mpp_enc_cfg_set_s32(cfg, "h264:cabac_en", 1);
     mpp_enc_cfg_set_s32(cfg, "h264:cabac_idc", 0);
     mpp_enc_cfg_set_s32(cfg, "h264:trans8x8", 1);

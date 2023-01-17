@@ -4,8 +4,11 @@
 #include "Decoder.h"
 #include "Encoder.h"
 #include "Operators.h"
+#include "atomic_queue.h"
 #include <iostream>
 #include <fstream>
+#include <queue>
+#include <chrono>
 extern "C" {
 #include <libavformat/avformat.h>
 #include "libswscale/swscale.h"
@@ -18,9 +21,21 @@ Codec::Decoder *decoder;
 Codec::Encoder *encoder;
 FILE *file;
 Operators *operators = nullptr;
+atomic_queue::AtomicQueue<AVFrame *, 512> queue_;
 
 void onDecodedYUV(unsigned char *BGR888, unsigned char *YUV420, int width, int height);
 std::pair<unsigned char *, size_t> reencode(unsigned char *YUV420, size_t length);
+
+
+void PushQueue(const std::vector<AVFrame *> &frames) {
+    for (AVFrame *frame: frames) {
+        queue_.try_push(frame);
+    }
+}
+
+AVFrame *PopQueue() {
+    return queue_.pop();
+}
 
 #ifdef _MSC_VER
 std::pair<unsigned char*, size_t> toYUV420(AVFrame *frame) {
@@ -96,7 +111,7 @@ std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame) {
     int width        = frame->width;
     int height       = frame->height;
 
-    avpicture_fill(&pFrameYUV, pYUV, AV_PIX_FMT_YUV420P, width, height);
+    avpicture_fill(&pFrameYUV, pYUV, AV_PIX_FMT_NV12, width, height);
 
     // U,V互换
     uint8_t *ptmp     = pFrameYUV.data[1];
@@ -129,44 +144,55 @@ std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame) {
 
 
 #endif // _MSC_VER
-
+void onReceiveFrameProxy(unsigned char *data, size_t length) {
+    server->addFrame(data, length);
+}
 
 void onReceiveFrame(unsigned char *data, size_t length) {
     //解码并保存yuv数据
     std::vector<AVFrame *> frames = decoder->decode(data, length);
 
-    for (auto avFrame: frames) {
-        if (!avFrame) {
-            continue;
-        }
+    //将AVFrame放入队列
+    PushQueue(frames);
+}
 
-        //拷贝一份BGR888数据，给算法调用
-        unsigned char *BGR888 = nullptr;
-        size_t BGRSize = 0;
-        unsigned char *YUV420 = nullptr;
-        size_t YUVSize        = 0;
+//将解码和后续处理放到不同线程中，否则会导致解码丢帧
+void EncodeThreadEntry() {
+    while (true) {
+        AVFrame *avFrame = PopQueue();
 
-        //std::tie(BGR888, BGRSize) = toBGR888(avFrame);
-        std::tie(YUV420, YUVSize) = toYUV420(avFrame);
+       if (!avFrame) {
+           continue;
+       }
 
-        onDecodedYUV(BGR888, YUV420, avFrame->width, avFrame->height);
-         
-        //重新编码
-        unsigned char *h264Data = nullptr;
-        size_t h264Length       = 0;
+       //拷贝一份BGR888数据，给算法调用
+       unsigned char *BGR888 = nullptr;
+       size_t BGRSize        = 0;
+       unsigned char *YUV420 = nullptr;
+       size_t YUVSize        = 0;
 
-        std::tie(h264Data, h264Length) = reencode(YUV420, YUVSize);
+       // std::tie(BGR888, BGRSize) = toBGR888(avFrame);
+       std::tie(YUV420, YUVSize) = toYUV420(avFrame);
+       
+       onDecodedYUV(BGR888, YUV420, avFrame->width, avFrame->height);
+
+       //重新编码
+       unsigned char *h264Data = nullptr;
+       size_t h264Length       = 0;
+
+       std::tie(h264Data, h264Length) = reencode(YUV420, YUVSize);
 
         if (h264Data) {
             server->addFrame(h264Data, h264Length);
+            delete[] h264Data;
         }
 
-        delete[] h264Data;
 #ifdef _MSC_VER
-        free(YUV420); // Linux下不删除
-#endif // _MSC_VER
-        //free(BGR888);
+       free(YUV420); // Linux下不删除
+#endif                // _MSC_VER
+       //free(BGR888);
         av_frame_free(&avFrame);
+
     }
 }
 
@@ -187,11 +213,22 @@ std::pair<unsigned char*, size_t> reencode(unsigned char *YUV420, size_t length)
 }
 
 int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        printf("Invalid command line arguments:");
+        printf("    RtspProxy INPUT_URL DEST_URL [IS_PROXY]");
+
+        return 0;
+    }
+
     Common::InitLogger();    
     decoder = Codec::Decoder::createNew("H264");
     encoder = Codec::Encoder::createNew("H264");
 
     client  = new RTSP::ProxyRTSPClient();
+
+    //开启编码线程
+    std::thread encThread(&EncodeThreadEntry);
+    encThread.detach();
 
     if (!client->open(argv[1], 0, "")) {
         LOG_ERROR("stream can not open!!!!");
@@ -212,7 +249,13 @@ int main(int argc, char *argv[]) {
     server->start();
 
     LOG_INFO("Stream open success");
-    client->setFrameCallback(onReceiveFrame);
+
+    if (argc == 4 && (strcmp(argv[3], "1") == 0)) {
+        client->setFrameCallback(onReceiveFrameProxy);
+    } else {
+        client->setFrameCallback(onReceiveFrame);
+    }
+
     client->run();
     LOG_INFO("System exiting ......");
 }
