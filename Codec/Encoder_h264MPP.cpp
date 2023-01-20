@@ -68,7 +68,7 @@ typedef struct {
     RK_S32 gop;
 } MpiEncData;
 
-MPP_RET test_ctx_init(MpiEncData **data, int width, int height)
+static MPP_RET test_ctx_init(MpiEncData **data, int width, int height)
 {
     MpiEncData *p = NULL;
     MPP_RET ret = MPP_OK;
@@ -108,7 +108,7 @@ RET:
 }
 
 
-MPP_RET test_mpp_enc_cfg_setup(MpiEncData *p)
+static MPP_RET test_mpp_enc_cfg_setup(MpiEncData *p)
 {
     MPP_RET ret;
     MppApi *mpi;

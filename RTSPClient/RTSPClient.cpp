@@ -16,7 +16,7 @@ public:
 
     bool open(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd);
     bool close();
-    void setFrameCallback(const std::function<void(unsigned char *, size_t)> &callback);
+    void setFrameCallback(const std::function<void(AVPacket *)> &callback);
     void run();
     int getVideoWidth();
     int getVideoHeight();
@@ -25,7 +25,7 @@ private:
     std::string makeURL(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd);
 
 private:
-    std::function<void(unsigned char *, size_t)> onFrame_;
+    std::function<void(AVPacket *)> onFrame_;
     AVFormatContext *fmtCtx_;
     AVCodecContext *codecCtx_;
     int vsIndex = 0;
@@ -83,24 +83,24 @@ bool ProxyRTSPClient::impl::close()
     return true;
 }
 
-void ProxyRTSPClient::impl::setFrameCallback(const std::function<void(unsigned char *, size_t)> &callback)
+void ProxyRTSPClient::impl::setFrameCallback(const std::function<void(AVPacket *)> &callback)
 {
     onFrame_ = callback;
 }
 
 void ProxyRTSPClient::impl::run() 
 {
-    while (true) {    
-        AVPacket packet;
+    while (true) {
+        AVPacket *packet = av_packet_alloc();
 
-        av_init_packet(&packet);
-        int ret = av_read_frame(fmtCtx_, &packet);
+        av_init_packet(packet);
+        int ret = av_read_frame(fmtCtx_, packet);
 
-        if (ret >= 0 && onFrame_ && packet.stream_index == vsIndex) {
-            onFrame_(packet.data, packet.size);
+        if (ret >= 0 && onFrame_ && packet->stream_index == vsIndex) {
+            onFrame_(packet);
         }
 
-        av_free_packet(&packet);
+        av_packet_unref(packet);
     }
 }
 
@@ -119,6 +119,7 @@ int ProxyRTSPClient::impl::getVideoHeight() {
 
     return 0;
 }
+
 //---------------------------------------------------------------------------------------------------------
 ProxyRTSPClient::ProxyRTSPClient() {
     m_impl = new impl();
@@ -138,7 +139,7 @@ bool ProxyRTSPClient::close() {
     return m_impl->close();
 }
 
-void ProxyRTSPClient::setFrameCallback(const std::function<void(unsigned char *, size_t)> &callback) {
+void ProxyRTSPClient::setFrameCallback(const std::function<void(AVPacket *)> &callback) {
     m_impl->setFrameCallback(callback);
 }
 

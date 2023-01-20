@@ -15,6 +15,8 @@
 #include <string>
 #include <functional>
 
+
+struct AVPacket;
 namespace RTSP
 {
 class RTSPCLIENT_EXPORT ProxyRTSPClient
@@ -48,7 +50,7 @@ public:
      * @brief 设置获得帧时的回调
      * 
      */
-    void setFrameCallback(const std::function<void (unsigned char *, size_t)> &);
+    void setFrameCallback(const std::function<void (AVPacket *)> &);
 
     /**
      * @brief 开始执行获得流

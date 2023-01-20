@@ -7,11 +7,11 @@ include_directories("${3RD_DIRECTORY}/osal/inc")
 
 if(WIN32)
 include_directories("${3RD_DIRECTORY}/mpp/inc")
-list(APPEND SOURCES "Decoder_h264Windows.cpp" "Encoder_h264Windows.cpp")
+list(APPEND SOURCES "Decoder_h264Windows.cpp" "Encoder_h264Windows.cpp" "Encoder_JPEGWindows.cpp")
 else()
 include_directories("${CMAKE_SYSROOT}/usr/include/rockchip")
 include_directories("${CMAKE_SYSROOT}/usr/include")
-list(APPEND SOURCES "Decoder_h264Windows.cpp" "Encoder_h264MPP.cpp")
+list(APPEND SOURCES "Decoder_h264Windows.cpp" "Encoder_h264MPP.cpp" "Encoder_JPEGMPP.cpp")
 endif()
 
 list(APPEND SOURCES "Decoder.cpp" "Encoder.cpp")
