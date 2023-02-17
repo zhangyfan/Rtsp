@@ -3,16 +3,15 @@ add_definitions(-DOPERATORS_LIBRARY)
 file(GLOB SOURCES *.cpp)
 file(GLOB HEADERS *.h)
 
-if(WIN32)
-include_directories("${3RD_DIRECTORY}/alg_reasoning")
-else()
-include_directories("${CMAKE_SYSROOT}/usr/include")
-include_directories("${3RD_DIRECTORY}/alg_reasoning")
-endif()
+include_directories(
+    "${CMAKE_SYSROOT}/usr/include"
+    "${3RD_DIRECTORY}/alg_inc"
+    "${3RD_DIRECTORY}/json"
+)
 
 add_library(Operators SHARED ${SOURCES} ${HEADERS})
-if(WIN32)
-target_link_libraries(Operators common)
+if(UNIX)
+target_link_libraries(Operators common rwalg_core rwalg_reasoning)
 else()
 target_link_libraries(Operators common)
 endif()

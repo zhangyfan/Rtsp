@@ -18,7 +18,7 @@
 #include <spdlog/spdlog.h>
 
 namespace Common {
-    COMMON_EXPORT void InitLogger(const std::string &path = "", spdlog::level::level_enum defaultLevel = spdlog::level::debug);
+COMMON_EXPORT void InitLogger(std::string_view camId, spdlog::level::level_enum defaultLevel = spdlog::level::debug);
 }
 
 #define LOG_TRACE             SPDLOG_TRACE

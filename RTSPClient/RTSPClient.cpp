@@ -1,4 +1,4 @@
-#include "RTSPClient.h"
+﻿#include "RTSPClient.h"
 #include "logger.h"
 #include <sstream>
 extern "C" {
@@ -17,45 +17,70 @@ public:
     bool open(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd);
     bool close();
     void setFrameCallback(const std::function<void(AVPacket *)> &callback);
+    void setErrorCallback(const std::function<void()> &func); 
     void run();
     int getVideoWidth();
     int getVideoHeight();
+    double getFps();
 
 private:
-    std::string makeURL(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd);
+    static int InterruptCB(void *);
+    int InterruptCB();
+    void resetStartEpoch();
 
 private:
     std::function<void(AVPacket *)> onFrame_;
+    std::function<void()> onError_;
     AVFormatContext *fmtCtx_;
-    AVCodecContext *codecCtx_;
     int vsIndex = 0;
+    std::string url_;
+    std::chrono::system_clock::time_point tp_;
 };
 
 ProxyRTSPClient::impl::impl() {
-    fmtCtx_ = avformat_alloc_context();
-    codecCtx_ = NULL;
 }
 
 ProxyRTSPClient::impl::~impl() {
 }
 
-std::string ProxyRTSPClient::impl::makeURL(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd) {
-    // rtsp://[username[:password]@]ip_address[:rtsp_port]/path
-    std::stringstream ss;
+//连接失败直接五秒后重试
+int ProxyRTSPClient::impl::InterruptCB(void *ptr) {
+    return ((ProxyRTSPClient::impl *)ptr)->InterruptCB();
+}
 
-    ss << "rtsp://";
+int ProxyRTSPClient::impl::InterruptCB() {
+    using namespace std::chrono;
 
-    if (!user.empty() && !passwd.empty()) {
-        ss << user << ":" << passwd << "@";
+    auto now = system_clock::now();
+    auto dura = now - tp_;
+
+    if (dura > std::chrono::seconds(5)) {
+        return 1;
     }
 
-    ss << addr << ":" << port << "/" << path;
-    return ss.str();
+    return 0;
+}
+
+void ProxyRTSPClient::impl::resetStartEpoch() {
+    using namespace std::chrono;
+    tp_ = system_clock::now();
 }
 
 bool ProxyRTSPClient::impl::open(const std::string &addr, int port, const std::string &path, const std::string &user, const std::string &passwd) {
-    std::string url = addr; // makeURL(addr, port, path, user, passwd);
-    int ret         = avformat_open_input(&fmtCtx_, url.c_str(), NULL, NULL);
+    fmtCtx_ = avformat_alloc_context();
+    url_    = addr;
+    
+    //初始化超时时间
+    AVIOInterruptCB intCB;
+
+    intCB.callback              = InterruptCB;
+    intCB.opaque                = (void *)this;
+    fmtCtx_->interrupt_callback = intCB;
+
+    //设置开始时间
+    resetStartEpoch();
+
+    int ret                     = avformat_open_input(&fmtCtx_, url_.c_str(), nullptr, nullptr);
 
     // open RTSP
     if (ret != 0) {
@@ -79,7 +104,7 @@ bool ProxyRTSPClient::impl::open(const std::string &addr, int port, const std::s
 
 bool ProxyRTSPClient::impl::close()
 {
-    av_read_pause(fmtCtx_);
+    avformat_free_context(fmtCtx_);
     return true;
 }
 
@@ -88,19 +113,31 @@ void ProxyRTSPClient::impl::setFrameCallback(const std::function<void(AVPacket *
     onFrame_ = callback;
 }
 
+void ProxyRTSPClient::impl::setErrorCallback(const std::function<void()>& func) {
+    onError_ = func;
+}
+
 void ProxyRTSPClient::impl::run() 
 {
     while (true) {
         AVPacket *packet = av_packet_alloc();
 
         av_init_packet(packet);
+        resetStartEpoch();
+
         int ret = av_read_frame(fmtCtx_, packet);
+
+        if (ret < 0 && onError_) {
+            onError_();
+            av_packet_free(&packet);
+            break;
+        }
 
         if (ret >= 0 && onFrame_ && packet->stream_index == vsIndex) {
             onFrame_(packet);
         }
 
-        av_packet_unref(packet);
+        av_packet_free(&packet);
     }
 }
 
@@ -118,6 +155,14 @@ int ProxyRTSPClient::impl::getVideoHeight() {
     }
 
     return 0;
+}
+
+double ProxyRTSPClient::impl::getFps() {
+    if (fmtCtx_->nb_streams > 0) {
+        return av_q2d(fmtCtx_->streams[vsIndex]->r_frame_rate);
+    }
+
+    return 0.0;
 }
 
 //---------------------------------------------------------------------------------------------------------
@@ -153,5 +198,13 @@ int ProxyRTSPClient::getVideoWidth() {
 
 int ProxyRTSPClient::getVideoHeight() {
     return m_impl->getVideoHeight();
+}
+
+double ProxyRTSPClient::getFps() {
+    return m_impl->getFps();
+}
+
+void ProxyRTSPClient::setErrorCallback(const std::function<void()> &func) {
+    m_impl->setErrorCallback(func);
 }
 } // namespace RTSP

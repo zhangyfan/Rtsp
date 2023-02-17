@@ -5,24 +5,17 @@
 #include <filesystem>
 
 namespace Common {
-COMMON_EXPORT void InitLogger(const std::string &path, spdlog::level::level_enum defaultLevel) {
+COMMON_EXPORT void InitLogger(std::string_view camId, spdlog::level::level_enum defaultLevel) {
     using namespace spdlog;
     using namespace std;
 
-    std::string loggerDir = path;
-    filesystem::path dir(path);
+    std::string fileName;
 
-    if (path.empty()) {
-        //默认情况下写入到home目录
-        dir        = filesystem::current_path();
-    }
-
-    dir = dir / "RtspProxy.txt";
-    loggerDir = dir.u8string();
+    fileName = fmt::format("RtspProxy-{}.txt", camId);
 
     //一个最大16MB的滚动日志
     auto console_sink  = std::make_shared<sinks::stdout_color_sink_mt>();    
-    auto rotating_sink = std::make_shared<sinks::rotating_file_sink_mt>(loggerDir, 16*1024*1024, 1);  
+    auto rotating_sink = std::make_shared<sinks::rotating_file_sink_mt>(fileName, 16 * 1024 * 1024, 1);  
 
     console_sink->set_level(defaultLevel);
     rotating_sink->set_level(defaultLevel);

@@ -53,6 +53,11 @@ public:
     void setFrameCallback(const std::function<void (AVPacket *)> &);
 
     /**
+     * @brief 设置出错时的回调
+     */
+    void setErrorCallback(const std::function<void()> &);
+
+    /**
      * @brief 开始执行获得流
      * 
      */
@@ -70,6 +75,12 @@ public:
      *
      */
     int getVideoHeight();
+
+    /**
+     * @brief 获得视频帧率
+     *
+     */
+    double getFps();
 
 private:
     class impl;

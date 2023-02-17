@@ -16,13 +16,14 @@
 #include <vector>
 
 struct AVFrame;
+struct AVPacket;
 
 namespace Codec {
 class CODEC_EXPORT Decoder
 {
 public:
     static Decoder *createNew(const std::string &codecName);
-    virtual std::vector<AVFrame *> decode(unsigned char *src, size_t length) = 0;
+    virtual std::vector<AVFrame *> decode(AVPacket *pkt) = 0;
 };
 }
 

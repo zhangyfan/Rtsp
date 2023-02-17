@@ -18,10 +18,10 @@ public:
     impl();
     ~impl();
 
-    std::vector<AVFrame *> decode(unsigned char *src, size_t length);
+    std::vector<AVFrame *> decode(AVPacket *pkt);
 
 private:
-    void initHWContext();
+    void receiveFrames(std::vector<AVFrame *> &vec);
 
 private:
     AVCodec *codec_;
@@ -33,7 +33,6 @@ DecoderH264::impl::impl() {
 #ifdef _MSC_VER
     codec_ = avcodec_find_decoder_by_name("h264");
 #else
-    //initHWContext();
     codec_ = avcodec_find_decoder_by_name("h264_rkmpp");
 #endif
     if (!codec_) {
@@ -57,63 +56,33 @@ DecoderH264::impl::impl() {
 DecoderH264::impl::~impl() {
 }
 
-void DecoderH264::impl::initHWContext() {
-    int err = 0;
+void DecoderH264::impl::receiveFrames(std::vector<AVFrame*>& vec) {
+    while (true) {
+        AVFrame *pFrame = av_frame_alloc();
+        int ret         = avcodec_receive_frame(context_, pFrame);
 
-    if ((err = av_hwdevice_ctx_create(&hwCtx_, AV_HWDEVICE_TYPE_DRM, NULL, NULL, 0)) < 0) {
-        LOG_ERROR("Failed to create specified HW device [{}]", err);
-        return;
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || ret < 0) {
+            av_frame_free(&pFrame);
+            break;
+        }
+        vec.push_back(pFrame);
     }
-
-    context_->hw_device_ctx = av_buffer_ref(hwCtx_);
 }
 
-std::vector<AVFrame *> DecoderH264::impl::decode(unsigned char *src, size_t length) {
-    AVPacket *pPacket = av_packet_alloc();
-    
-    if (!pPacket) {
-        LOG_ERROR("Error on alloc packet or frame");
-        return std::vector<AVFrame *>();
-    }
-
-    av_init_packet(pPacket);
-    
-    pPacket->size = (int)length;
-    pPacket->data = src;
-
+std::vector<AVFrame *> DecoderH264::impl::decode(AVPacket *pkt) {
     std::vector<AVFrame *> res;
-    int ret       = avcodec_send_packet(context_, pPacket);
+    int ret       = avcodec_send_packet(context_, pkt);
 
     if (ret == -11) {
-        AVFrame *pFrame = av_frame_alloc();
-        ret             = avcodec_receive_frame(context_, pFrame);
-
-        if (ret == 0) {
-            res.push_back(pFrame);
-        } else {
-            av_frame_free(&pFrame);
-        }
-
-        avcodec_send_packet(context_, pPacket);
+        receiveFrames(res);
+        avcodec_send_packet(context_, pkt);
     }
 
     if (ret < 0) {
         return std::vector<AVFrame *>();
     }
 
-    while (true) {
-        AVFrame *pFrame = av_frame_alloc();
-        ret = avcodec_receive_frame(context_, pFrame);
-
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF || ret < 0) {
-            av_frame_free(&pFrame);
-            break;
-        }
-
-        res.push_back(pFrame);
-    }
-
-    av_free_packet(pPacket);
+    receiveFrames(res);
     return res;
 }
 
@@ -128,6 +97,6 @@ DecoderH264::~DecoderH264() {
     }
 }
 
-std::vector<AVFrame *> DecoderH264::decode(unsigned char *src, size_t length) {
-    return impl_->decode(src, length);
+std::vector<AVFrame *> DecoderH264::decode(AVPacket *pkt) {
+    return impl_->decode(pkt);
 }

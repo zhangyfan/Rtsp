@@ -23,7 +23,7 @@ private:
 private:
     using FrameType = std::pair<unsigned char *, size_t>;
     
-    std::queue<FrameType> queue_;
+    FrameType frame_;
     std::mutex mtx_;
     std::condition_variable cond_;
     EventTriggerId triggerId_;

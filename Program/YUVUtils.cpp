@@ -1,4 +1,6 @@
 #include <utility>
+#include <tuple>
+#include "logger.h"
 extern "C" {
     #include <libavformat/avformat.h>
     #include "libswscale/swscale.h"
@@ -37,8 +39,20 @@ std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame) {
     sws_freeContext(swsContext);
     return std::make_pair(data, length);
 }
+
+bool YUV2JPG(AVFrame *frame, std::string_view path) {
+    return false;
+}
 #else
 #include "mpp_frame.h"
+#include "opencv2/opencv.hpp"
+#include "opencv2/core/core_c.h"
+#include "rga/im2d.hpp"
+#include "rga/RockchipRga.h"
+#include "rga/RgaUtils.h"
+#include <fstream>
+
+#define MPP_ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
 
 typedef struct
 {
@@ -65,50 +79,115 @@ MppFrame AVFrame2MppFrame(AVFrame *avframe) {
 
 std::pair<unsigned char *, size_t> toYUV420(AVFrame *frame) {
     MppFrame mppFrame      = AVFrame2MppFrame(frame);
-    int width              = frame->width;
-    int height             = frame->height;
     MppBuffer buffer       = mpp_frame_get_buffer(mppFrame);
+    int width              = MPP_ALIGN(frame->width, 16);
+    int height             = MPP_ALIGN(frame->height, 16);
 
     return std::make_pair((unsigned char *)mpp_buffer_get_ptr(buffer), width * height * 3 / 2);
 }
 
+//std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame) {
+//    unsigned char *YUV420;
+//    size_t YUVSize;
+//
+//    std::tie(YUV420, YUVSize) = toYUV420(frame);
+//    int width                 = MPP_ALIGN(frame->width, 16);
+//    int height                = MPP_ALIGN(frame->height, 16);
+//
+//    cv::Mat mat_src           = cv::Mat(height * 3 / 2, width, CV_8UC1, YUV420);
+//    cv::Mat mat_dst           = cv::Mat(height, width, CV_8UC3);
+//
+//    cv::cvtColor(mat_src, mat_dst, cv::COLOR_YUV2BGR_NV12);
+//
+//    //拷贝数据
+//    size_t BGRSize = width * height * 3;
+//    unsigned char *BGR888 = (unsigned char *)malloc(BGRSize);
+//
+//    memcpy(BGR888, mat_dst.data, BGRSize);
+//    {
+//        FILE *out = fopen("out.bgr", "wb");
+//        fwrite(BGR888, 1, BGRSize, out);
+//        fclose(out);
+//    }
+//    return std::make_pair(BGR888, BGRSize);
+//}
+
 std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame) {
-    AVPicture pFrameYUV, pFrameBGR;
-    MppBuffer buffer = mpp_frame_get_buffer(frame);
-    uint8_t * pYUV    = (uint8_t *)mpp_buffer_get_ptr(buffer);
-    int width        = frame->width;
-    int height       = frame->height;
+    unsigned char *YUV420;
+    size_t YUVSize;
 
-    avpicture_fill(&pFrameYUV, pYUV, AV_PIX_FMT_NV12, width, height);
+    //SRC
+    std::tie(YUV420, YUVSize) = toYUV420(frame);
+    int width                 = frame->width;
+    int height                = frame->height;
+    int wStrike               = MPP_ALIGN(width, 16);
+    int vStrike               = MPP_ALIGN(height, 16);
 
-    // U,V互换
-    uint8_t *ptmp     = pFrameYUV.data[1];
-    pFrameYUV.data[1] = pFrameYUV.data[2];
-    pFrameYUV.data[2] = ptmp;
+    //DST
+    IM_STATUS STATUS;
 
-    size_t size       = width * height * 3;
-    uint8_t *pBGR24   = new uint8_t[size];
+    rga_buffer_t src;
+    rga_buffer_t dst;
+    char *src_buf = NULL;
+    char *dst_buf = NULL;
 
-    avpicture_fill(&pFrameBGR, pBGR24, AV_PIX_FMT_BGR24,width, height); //BGR
+    memset(&src, 0, sizeof(src));
+    memset(&dst, 0, sizeof(dst));
 
-    struct SwsContext *imgCtx = NULL;
-    imgCtx                    = sws_getContext(width, height, AV_PIX_FMT_YUV420P, width, height, AV_PIX_FMT_BGR24, SWS_BILINEAR, 0, 0, 0);
+    src_buf    = (char *)YUV420;
+    dst_buf    = (char *)malloc(wStrike * vStrike * get_bpp_from_format(RK_FORMAT_RGB_888));
 
-    if (imgCtx != NULL) {
-        sws_scale(imgCtx,pFrameYUV.data,pFrameYUV.linesize,0,height,pFrameBGR.data,pFrameBGR.linesize);
+    src        = wrapbuffer_virtualaddr(src_buf, wStrike, vStrike, RK_FORMAT_YCbCr_420_SP);
+    dst        = wrapbuffer_virtualaddr(dst_buf, wStrike, vStrike, RK_FORMAT_RGB_888);
 
-        if (imgCtx) {
-            sws_freeContext(imgCtx);
-            imgCtx = NULL;
-        }
-    } else {
-        sws_freeContext(imgCtx);
-        imgCtx = NULL;
+    src.format = RK_FORMAT_YCbCr_420_SP;
+    dst.format = RK_FORMAT_BGR_888;
+
+    STATUS = imcvtcolor(src, dst, src.format, dst.format);
+
+    if (STATUS != IM_STATUS_SUCCESS) {
+        LOG_ERROR("Error on imcvtcolor [{}]", STATUS);
+        return std::make_pair(nullptr, 0);
     }
-
-    sws_freeContext(imgCtx);
-    return std::make_pair(pBGR24, size);
+    return std::make_pair((unsigned char *)dst_buf, wStrike * vStrike * 3);
 }
 
+bool YUV2JPG(AVFrame *frame, std::string_view path) {
+    unsigned char *YUV420;
+    size_t YUVSize;
 
+    // SRC
+    std::tie(YUV420, YUVSize) = toYUV420(frame);
+    int width                 = frame->width;
+    int height                = frame->height;
+    int wStrike               = MPP_ALIGN(width, 16);
+    int vStrike               = MPP_ALIGN(height, 16);
+
+    cv::Mat yuvImg;
+    cv::Mat rgbImg(vStrike, wStrike, CV_8UC3);
+
+    yuvImg.create(vStrike * 3 / 2, wStrike, CV_8UC1);
+    memcpy(yuvImg.data, YUV420, YUVSize * sizeof(unsigned char));
+
+    //先转为rgb
+    cv::cvtColor(yuvImg, rgbImg, cv::COLOR_YUV2RGB_NV21);
+
+    //转换
+    std::vector<uchar> encode;
+
+    cv::imencode(".jpg", rgbImg, encode, {cv::IMWRITE_JPEG_QUALITY, 50});
+
+    //写入
+    std::ofstream ofs(std::string(path), std::ios::binary);
+
+    if (!ofs.is_open()) {
+        LOG_ERROR("Error on write jpg to {}", path);
+        return false;
+    }
+    std::ostream_iterator<uchar> oit(ofs);
+
+    std::copy(encode.begin(), encode.end(), oit);
+    ofs.close();
+    return true;
+}
 #endif // _MSC_VER

@@ -23,16 +23,8 @@ public:
 
     /**
      * @brief 解码
-     * 
-     * @warning 需要调用方删除dst内存
-     * @param src       源数据
-     * @param length    源数据大小
-     * @param dst       输出数据
-     * @param dstLength 输出数据大小
-     * @return true 
-     * @return false 
      */
-    virtual std::vector<AVFrame *> decode(unsigned char *src, size_t length);
+    virtual std::vector<AVFrame *> decode(AVPacket *pkt);
 
 private:
     class impl;

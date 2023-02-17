@@ -11,11 +11,14 @@
 #ifndef _SNAPTHREAD_H_
 #define _SNAPTHREAD_H_
 #pragma once
+#include <functional>
+
+struct AVFrame;
 
 /**
  * @brief 开启截图线程（每五秒一次）
  */
-extern void startSnap(int width, int height);
+extern void startSnap(int width, int height, const std::function<void()> &callback);
 
 /**
  * @brief 停止截图线程
@@ -28,4 +31,11 @@ extern void stopSnap();
  */
 extern void triggerSnap();
 
+/**
+ * @brief 设置要截图的帧
+ */
+extern void setSnapFrame(std::shared_ptr<AVFrame> );
 #endif //_SNAPTHREAD_H_
+
+
+

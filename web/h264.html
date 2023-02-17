@@ -18,7 +18,7 @@
     <script>
         var jmuxer;
         window.onload = function () {
-            var socketURL = 'ws://localhost:9000/data';
+            var socketURL = 'ws://192.168.1.106:9000/h264';
             jmuxer = new JMuxer({
                 node: 'player',
                 mode: 'video',
@@ -33,7 +33,13 @@
             });
 
             var ws = new WebSocket(socketURL);
+			var ws1 = new WebSocket('ws://192.168.1.106:9000/snap');
+            var ws2 = new WebSocket('ws://192.168.1.106:9000/meta');
+			
             ws.binaryType = 'arraybuffer';
+            ws1.binaryType = 'arraybuffer';
+            ws2.binaryType = 'arraybuffer';
+
             ws.addEventListener('message', function (event) {
                 data = new Uint8Array(event.data);
                 
@@ -45,6 +51,18 @@
             ws.addEventListener('error', function (e) {
                 console.log('Socket Error');
             });
+			
+			ws1.addEventListener('message', function (event) {
+				console.log(event.data);
+            });
+            ws2.addEventListener('message', function (event) {
+				var jsonObject = JSON.parse(event.data);
+                console.log(jsonObject);
+            });
+			
+			setInterval(() => {
+                ws1.send('1');
+            }, 5000);
         }
 
     </script>

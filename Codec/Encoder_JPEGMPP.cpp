@@ -86,7 +86,7 @@ static MPP_RET test_ctx_init(MpiEncData **data, int width, int height)
     p->ver_stride   = MPP_ALIGN(height, 16);
     p->fmt          = MPP_FMT_YUV420SP;
     p->type         = MPP_VIDEO_CodingMJPEG;
-    p->bps          = width * height / 8 * 30;
+    p->bps          = width * height / 8 * 1;
     p->bps_min      = p->bps * 1 / 16;
     p->bps_max      = p->bps * 17 / 16;
     p->rc_mode      = MPP_ENC_RC_MODE_CBR;
@@ -94,11 +94,11 @@ static MPP_RET test_ctx_init(MpiEncData **data, int width, int height)
 
     p->fps_in_flex  = 0;
     p->fps_in_den   = 1;
-    p->fps_in_num   = 30;
+    p->fps_in_num   = 1;
     p->fps_out_flex = 0;
     p->fps_out_den  = 1;
-    p->fps_out_num  = 30;
-    p->gop          = 30;
+    p->fps_out_num  = 1;
+    p->gop          = 1;
     p->frame_size   = MPP_ALIGN(p->hor_stride, 64) * MPP_ALIGN(p->ver_stride, 64) * 2;
     p->header_size = 0;
 
@@ -125,11 +125,11 @@ static MPP_RET test_mpp_enc_cfg_setup(MpiEncData *p)
     if (p->fps_in_den == 0)
         p->fps_in_den = 1;
     if (p->fps_in_num == 0)
-        p->fps_in_num = 30;
+        p->fps_in_num = 1;
     if (p->fps_out_den == 0)
         p->fps_out_den = 1;
     if (p->fps_out_num == 0)
-        p->fps_out_num = 30;
+        p->fps_out_num = 1;
 
     if (!p->bps)
         p->bps = p->width * p->height / 8 * (p->fps_out_num / p->fps_out_den);
@@ -153,7 +153,7 @@ static MPP_RET test_mpp_enc_cfg_setup(MpiEncData *p)
 
     /* drop frame or not when bitrate overflow */
     mpp_enc_cfg_set_u32(cfg, "rc:drop_mode", MPP_ENC_RC_DROP_FRM_DISABLED);
-    mpp_enc_cfg_set_u32(cfg, "rc:drop_thd", 20);        /* 20% of max bps */
+    mpp_enc_cfg_set_u32(cfg, "rc:drop_thd", 100);        /* 20% of max bps */
     mpp_enc_cfg_set_u32(cfg, "rc:drop_gap", 1);         /* Do not continuous drop frame */
 
     /* setup bitrate for different rc_mode */
@@ -311,11 +311,8 @@ bool EncoderJPEG::impl::encode(unsigned char *src, size_t length, unsigned char 
     
     void *ptr   = mpp_packet_get_pos(packet);
     size_t len  = mpp_packet_get_length(packet);
-        
-    if (mpp_packet_is_partition(packet) && !mpp_packet_is_eoi(packet)) {
-        //LOG_ERROR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    }
-
+    
+    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! %d\n", len);
     dst = new unsigned char[len];
 
     memcpy(dst, ptr, len);

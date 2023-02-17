@@ -12,13 +12,16 @@
 #define _OPERATORS_H_
 #pragma once
 #include "Operators_global.h"
+#include "Result.h"
+#include <string>
+#include <vector>
 
 class OPERATORS_EXPORT Operators {
 public:
     Operators();
     ~Operators();
 
-    bool init();
+    bool init(std::string_view dir, std::string_view camId);
 
     /**
      * @brief 调用算法
@@ -30,7 +33,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool detect(unsigned char *BGR888, int width, int height, unsigned char *YUV420);
+    std::vector<Result> detect(unsigned char *BGR888, int width, int height);
 
 private:
     class impl;

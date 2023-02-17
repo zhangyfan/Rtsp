@@ -13,11 +13,15 @@
 #pragma once
 #include <string_view>
 
+namespace Websocket {
+class WSServer;
+}
+
 /**
  * @brief 开始算法计算线程
  * 
  */
-extern void startOperators(std::string_view cameraId);
+extern void startOperators(std::string dir, std::string_view cameraId, Websocket::WSServer *server);
 
 /**
  * @brief 停止算法计算线程
@@ -25,4 +29,8 @@ extern void startOperators(std::string_view cameraId);
  */
 extern void stopOperators();
 
+/**
+ * @brief 设置要截图的帧
+ */
+extern void setOperatorsFrame(std::shared_ptr<AVFrame>, uint64_t pts);
 #endif //_OPERATORSTHREAD_H_

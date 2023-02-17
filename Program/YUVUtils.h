@@ -13,8 +13,10 @@
 #pragma once
 #include <utility>
 
+#define MPP_ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
+
 struct AVFrame;
 extern std::pair<unsigned char*, size_t> toYUV420(AVFrame *frame);
 extern std::pair<unsigned char *, size_t> toBGR888(AVFrame *frame);
-
+extern bool YUV2JPG(AVFrame *frame, std::string_view path);
 #endif //_YUVUTILS_H_

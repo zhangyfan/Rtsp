@@ -22,7 +22,8 @@ LiveSource *LiveSource::createNew(UsageEnvironment &env) {
     return new LiveSource(env);
 }
 
-LiveSource::LiveSource(UsageEnvironment &env): FramedSource(env) {
+LiveSource::LiveSource(UsageEnvironment &env)
+    : FramedSource(env), frame_(nullptr, 0) {
     triggerId_ = envir().taskScheduler().createEventTrigger(LiveSource::deliverFrameStub);
 }
 
@@ -58,14 +59,18 @@ void LiveSource::deliverFrame() {
 
     if (length - trancate > fMaxSize) {
         fFrameSize         = fMaxSize;
-        fNumTruncatedBytes = length - trancate - fMaxSize;
+        fNumTruncatedBytes = (unsigned int)length - trancate - fMaxSize;
     } else {
-        fFrameSize = length - trancate;
+        fFrameSize = (unsigned int)length - trancate;
     }
     
     gettimeofday(&fPresentationTime, NULL);
     memmove(fTo, data + trancate, fFrameSize);
+
     FramedSource::afterGetting(this);
+
+    //清理
+    std::unique_lock<std::mutex> guard(mtx_);
 }
 
 void LiveSource::addFrame(unsigned char *data, size_t length) {
@@ -73,9 +78,14 @@ void LiveSource::addFrame(unsigned char *data, size_t length) {
     memcpy(buffer, data, length);
 
     std::unique_lock<std::mutex> guard(mtx_);
-    queue_.push(std::make_pair(buffer, length));
-    cond_.notify_all();
 
+    if (frame_.first) {
+        delete[] frame_.first;
+    }
+
+    frame_ = std::make_pair(buffer, length);
+
+    cond_.notify_all();
     envir().taskScheduler().triggerEvent(triggerId_, this);
 }
 
@@ -83,13 +93,11 @@ std::pair<unsigned char*, size_t> LiveSource::getFrame() {
     std::pair<unsigned char *, size_t> res;
     std::unique_lock<std::mutex> guard(mtx_);
 
-    if (queue_.empty()) {
-        cond_.wait(guard, [this]() { return !queue_.empty(); });
+    if (!frame_.first) {
+        cond_.wait(guard, [this]() { return frame_.first; });
     }
 
-    res = queue_.front();
-    queue_.pop();
-    return res;
+    return frame_;
 }
 
 void LiveSource::deliverFrameStub(void *clientData) {
